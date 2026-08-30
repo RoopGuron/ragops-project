@@ -1,0 +1,34 @@
+services:
+  chromadb:
+    image: chromadb/chroma:latest
+    container_name: chromadb
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      # Use CHROMA_PERSIST_PATH for newer 1.x+ Chroma versions
+      - CHROMA_PERSIST_PATH=/data
+      - ANONYMIZED_TELEMETRY=false
+    volumes:
+      # Mount local directory to persist data across container restarts
+      - ./chroma-data:/data
+      # CORS config so the chromadb-ui web app (localhost:8090) can call the API
+      - ./config.yaml:/config.yaml
+
+  chromadb-ui:
+    build:
+      context: ./chromadb-ui
+      dockerfile: Dockerfile
+    container_name: chromadb-ui
+    restart: unless-stopped
+    ports:
+      - "8090:80"
+    depends_on:
+      - chromadb
+
+# volumes:
+#   chroma-data:
+
+networks:
+  default:
+    name: ragops_net

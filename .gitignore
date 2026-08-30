@@ -1,3 +1,10 @@
-./rag-ops-env
+rag-ops-env
 **/.DS_Store
 corpus
+airflow/logs
+airflow/artifacts
+**/scribble*
+**/__pycache__/*
+**/chroma*/*
+project-plan
+**/.env

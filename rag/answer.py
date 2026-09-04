@@ -69,12 +69,13 @@ def parse_citations(
     return kept, invented
 
 
-def answer_question(question: str, *, config: RagConfig | None = None) -> Answer:
+def answer_question(question: str, *, config: RagConfig | None = None, where: dict | None = None) -> Answer:
     config = config or RagConfig()
 
     chunks = retrieve(
         question,
         top_k=config.top_k,
+        where=where,
         host=config.chroma_host,
         port=config.chroma_port,
         collection_name=config.collection_name,
@@ -97,6 +98,10 @@ def answer_question(question: str, *, config: RagConfig | None = None) -> Answer
     gen = generate(system, user, model=config.llm_model, max_tokens=config.max_tokens)
 
     citations, invented = parse_citations(gen.text, chunks)
+    print(f" chunks retrieved: {len(chunks)}, citations kept: {len(citations)}, citations invented: {len(invented)} ")
+    print(f"  retrieved chunks: {[c.selector for c in chunks]}")
+    print(f"  retrieved citations: {[str(c) for c in citations]}")
+    print(f"  invented citations: {invented}")
     return Answer(
         question=question,
         text=gen.text,

@@ -12,6 +12,7 @@ its own).
 """
 
 from dataclasses import dataclass
+import os
 
 import anthropic
 
@@ -33,7 +34,18 @@ def generate(
     model: str = DEFAULT_LLM_MODEL,
     max_tokens: int = 1024,
 ) -> GenerationResult:
-    client = anthropic.Anthropic()  # key from ANTHROPIC_API_KEY or an `ant auth login` profile
+    workspace_id = os.environ.get("ANTHROPIC_WORKSPACE_ID")
+    api_key = os.environ.get("ANTHROPIC_API_KEY")
+    
+    print(f"Anthropic workspace: {workspace_id or '(none)'}, model: {model}, max_tokens: {max_tokens}")
+
+    client = anthropic.Anthropic(
+        api_key=api_key,
+        default_headers={"anthropic-workspace-id": workspace_id} if workspace_id else None
+    )
+
+    if not workspace_id:
+        raise ValueError("ANTHROPIC_WORKSPACE_ID is empty after cleaning.")
 
     try:
         resp = client.messages.create(

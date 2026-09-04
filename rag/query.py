@@ -57,10 +57,31 @@ def _to_record(ans: Answer, eval_row: dict | None) -> dict:
         rec["expected_sources"] = eval_row.get("expected_sources", [])
         rec["reference_answer"] = eval_row.get("reference_answer")
         expected = set(eval_row.get("expected_sources", []))
+        print(f"  expected sources: {expected}")
         if expected:
             hit = expected & set(rec["retrieved"])
+            print(f"  retrieved sources: {set(rec['retrieved'])}")
+            print(f"  hit sources: {hit}")
             rec["recall_at_k"] = round(len(hit) / len(expected), 3)
     return rec
+
+
+def _build_where(row: dict) -> dict | None:
+    """Turn an eval row's companies/filing_years into a Chroma metadata filter.
+
+    Chroma keys off the stored metadata field names (ticker, fiscal_year), needs
+    operator syntax ($in for membership), and allows exactly one top-level key —
+    so multiple conditions get wrapped in $and. Empty lists -> no filter, which
+    is what neg-01 (unanswerable) wants.
+    """
+    conds = []
+    if row.get("companies"):
+        conds.append({"ticker": {"$in": row["companies"]}})
+    if row.get("filing_years"):
+        conds.append({"fiscal_year": {"$in": row["filing_years"]}})
+    if not conds:
+        return None
+    return conds[0] if len(conds) == 1 else {"$and": conds}
 
 
 def run_eval(path: Path, out: Path | None, config: RagConfig) -> None:
@@ -69,7 +90,8 @@ def run_eval(path: Path, out: Path | None, config: RagConfig) -> None:
 
     records, recalls = [], []
     for row in rows:
-        ans = answer_question(row["question"], config=config)
+        print(f"\n=== {row.get('id', '?')} === {row.get('question', '(no question)')} === {row.get('expected_sources', [])}")
+        ans = answer_question(row["question"], config=config, where=_build_where(row))
         rec = _to_record(ans, row)
         records.append(rec)
         if "recall_at_k" in rec:
@@ -114,7 +136,7 @@ def main() -> None:
     if args.eval:
         run_eval(args.eval, args.out, config)
     elif args.question:
-        _print_answer(answer_question(args.question, config=config))
+        _print_answer(answer_question(args.question, config=config, where=args.where))
     else:
         parser.error("pass --question or --eval")
 

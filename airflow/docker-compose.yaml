@@ -68,6 +68,25 @@ services:
         condition: service_completed_successfully
     restart: unless-stopped
 
+  # Utility container for running one-off `airflow ...` commands. Not started
+  # with `docker compose up` — invoke it explicitly, e.g.:
+  #   docker compose run --rm airflow-cli airflow dags list
+  #   docker compose run --rm airflow-cli airflow version
+  airflow-cli:
+    <<: *airflow-common
+    profiles:
+      - debug
+    environment:
+      <<: *airflow-common-env
+      CONNECTION_CHECK_MAX_COUNT: "0"
+    command:
+      - bash
+      - -c
+      - airflow
+    depends_on:
+      postgres:
+        condition: service_healthy
+
 volumes:
   postgres-db-volume:
 

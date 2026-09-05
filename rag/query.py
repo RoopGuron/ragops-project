@@ -15,9 +15,13 @@ quality is visible without spending any LLM tokens.
 """
 
 import argparse
+from dataclasses import asdict
 import json
+import time
+import traceback
+from contextlib import contextmanager
 from pathlib import Path
-
+import mlflow
 from rag.answer import Answer, answer_question
 from rag.config import RagConfig
 
@@ -84,33 +88,71 @@ def _build_where(row: dict) -> dict | None:
     return conds[0] if len(conds) == 1 else {"$and": conds}
 
 
+@contextmanager
+def _tracked_run(config: RagConfig):
+    mlflow.set_experiment("RAG_Optimization_Engine")
+    with mlflow.start_run() as run:
+        mlflow.log_params(asdict(config))
+        print(f"Tracking run under ID: {run.info.run_id}")
+
+        # Start the timer immediately before yielding control
+        start_time = time.perf_counter()
+
+        try:
+          yield run
+
+        except Exception as e:
+            mlflow.set_tag("error_message", str(e))
+            mlflow.log_text(traceback.format_exc(), "error_traceback.txt")
+            raise e
+            
+        finally:
+            # This block ALWAYS runs, even if an exception was raised above
+            end_time = time.perf_counter()
+            duration_seconds = end_time - start_time
+            
+            # Log the total time as a metric in MLflow
+            mlflow.log_metric("execution_time_seconds", duration_seconds)
+            print(f"Run completed in {duration_seconds:.2f} seconds.")
+
+
+def run_question(question: str, config: RagConfig) -> None:
+    with _tracked_run(config):
+        ans = answer_question(question, config=config, where=None)
+        _print_answer(ans)
+        mlflow.log_metric("n_invented_citations", len(ans.invented_citations))
+
+
 def run_eval(path: Path, out: Path | None, config: RagConfig) -> None:
     rows = [json.loads(line) for line in path.read_text().splitlines() if line.strip()]
     print(f"loaded {len(rows)} eval questions from {path}")
 
-    records, recalls = [], []
-    for row in rows:
-        print(f"\n=== {row.get('id', '?')} === {row.get('question', '(no question)')} === {row.get('expected_sources', [])}")
-        ans = answer_question(row["question"], config=config, where=_build_where(row))
-        rec = _to_record(ans, row)
-        records.append(rec)
-        if "recall_at_k" in rec:
-            recalls.append(rec["recall_at_k"])
-        print(
-            f"  [{rec.get('id', '?')}] recall@{config.top_k}={rec.get('recall_at_k', 'n/a')} "
-            f"citations={rec['citations']}"
-        )
+    with _tracked_run(config):
+        records, recalls = [], []
+        for row in rows:
+            print(f"\n=== {row.get('id', '?')} === {row.get('question', '(no question)')} === {row.get('expected_sources', [])}")
+            ans = answer_question(row["question"], config=config, where=_build_where(row))
+            rec = _to_record(ans, row)
+            records.append(rec)
+            if "recall_at_k" in rec:
+                recalls.append(rec["recall_at_k"])
+            print(
+                f"  [{rec.get('id', '?')}] recall@{config.top_k}={rec.get('recall_at_k', 'n/a')} "
+                f"citations={rec['citations']}"
+            )
 
-    if recalls:
-        print(f"\nmean recall@{config.top_k}: {sum(recalls) / len(recalls):.3f} "
-              f"over {len(recalls)} scored rows")
+        if recalls:
+            mlflow.log_metric("mean_recall", sum(recalls) / len(recalls))
+            print(f"\nmean recall@{config.top_k}: {sum(recalls) / len(recalls):.3f} "
+                  f"over {len(recalls)} scored rows")
 
-    if out:
-        out.parent.mkdir(parents=True, exist_ok=True)
-        with open(out, "w") as f:
-            for rec in records:
-                f.write(json.dumps(rec) + "\n")
-        print(f"wrote {len(records)} records to {out}")
+        if out:
+            out.parent.mkdir(parents=True, exist_ok=True)
+            with open(out, "w") as f:
+                for rec in records:
+                    f.write(json.dumps(rec) + "\n")
+            print(f"wrote {len(records)} records to {out}")
+            mlflow.log_artifact(str(out))
 
 
 def main() -> None:
@@ -136,7 +178,7 @@ def main() -> None:
     if args.eval:
         run_eval(args.eval, args.out, config)
     elif args.question:
-        _print_answer(answer_question(args.question, config=config, where=args.where))
+        run_question(args.question, config)
     else:
         parser.error("pass --question or --eval")
 

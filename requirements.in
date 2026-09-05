@@ -13,3 +13,4 @@ chromadb>=0.5
 sentence-transformers>=3.0
 numpy
 anthropic>=1.0
+mlflow>=2.0

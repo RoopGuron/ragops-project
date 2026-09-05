@@ -7,11 +7,17 @@
 aiohappyeyeballs==2.7.1
     # via aiohttp
 aiohttp==3.14.3
-    # via kubernetes
+    # via
+    #   kubernetes
+    #   mlflow
 aiosignal==1.4.0
     # via aiohttp
+alembic==1.19.2
+    # via mlflow
 annotated-doc==0.0.5
-    # via typer
+    # via
+    #   fastapi
+    #   typer
 annotated-types==0.8.0
     # via pydantic
 anthropic==1.3.0
@@ -21,6 +27,7 @@ anyio==4.15.0
     #   anthropic
     #   httpx
     #   httpx2
+    #   starlette
     #   watchfiles
 attrs==26.1.0
     # via
@@ -31,8 +38,14 @@ bcrypt==5.0.0
     # via chromadb
 beautifulsoup4==4.15.0
     # via -r requirements.in
+blinker==1.9.0
+    # via flask
 build==1.6.0
     # via chromadb
+cachetools==7.1.8
+    # via
+    #   mlflow-skinny
+    #   mlflow-tracing
 certifi==2026.7.22
     # via
     #   -r requirements.in
@@ -40,6 +53,8 @@ certifi==2026.7.22
     #   httpx
     #   kubernetes
     #   requests
+cffi==2.1.1
+    # via cryptography
 charset-normalizer==3.5.1
     # via
     #   -r requirements.in
@@ -48,20 +63,48 @@ chromadb==1.5.9
     # via -r requirements.in
 click==8.5.0
     # via
+    #   flask
     #   huggingface-hub
+    #   mlflow-skinny
     #   uvicorn
 cloudpickle==3.1.2
-    # via joblib
+    # via
+    #   joblib
+    #   mlflow-skinny
+contourpy==1.3.3
+    # via matplotlib
+cryptography==49.0.0
+    # via
+    #   google-auth
+    #   mlflow
+cycler==0.12.1
+    # via matplotlib
+databricks-sdk==0.67.0
+    # via
+    #   mlflow-skinny
+    #   mlflow-tracing
+docker==7.2.0
+    # via mlflow
 docstring-parser==0.18.0
     # via anthropic
 durationpy==0.11
     # via kubernetes
+fastapi==0.141.1
+    # via mlflow-skinny
 filelock==3.32.5
     # via
     #   huggingface-hub
     #   torch
+flask==3.1.3
+    # via
+    #   flask-cors
+    #   mlflow
+flask-cors==6.0.5
+    # via mlflow
 flatbuffers==25.12.19
     # via onnxruntime
+fonttools==4.64.0
+    # via matplotlib
 frozenlist==1.8.0
     # via
     #   aiohttp
@@ -70,12 +113,28 @@ fsspec==2026.7.0
     # via
     #   huggingface-hub
     #   torch
+gitdb==4.0.12
+    # via gitpython
+gitpython==3.1.61
+    # via mlflow-skinny
+google-auth==2.57.1
+    # via databricks-sdk
 googleapis-common-protos==1.75.2
     # via opentelemetry-exporter-otlp-proto-grpc
+graphene==3.4.3
+    # via mlflow
+graphql-core==3.2.12
+    # via
+    #   graphene
+    #   graphql-relay
+graphql-relay==3.2.0
+    # via graphene
 grpcio==1.83.1
     # via
     #   chromadb
     #   opentelemetry-exporter-otlp-proto-grpc
+gunicorn==26.2.0
+    # via mlflow
 h11==0.16.0
     # via
     #   httpcore
@@ -95,6 +154,8 @@ httpx==0.28.1
     #   huggingface-hub
 httpx2==2.12.0
     # via anthropic
+huey==3.4.0
+    # via mlflow
 huggingface-hub==1.30.0
     # via
     #   sentence-transformers
@@ -108,10 +169,16 @@ idna==3.19
     #   httpx2
     #   requests
     #   yarl
+importlib-metadata==9.0.1
+    # via mlflow-skinny
 importlib-resources==7.1.0
     # via chromadb
+itsdangerous==2.2.0
+    # via flask
 jinja2==3.1.6
-    # via torch
+    # via
+    #   flask
+    #   torch
 jiter==0.16.0
     # via anthropic
 joblib==1.6.0
@@ -120,16 +187,32 @@ jsonschema==4.26.0
     # via chromadb
 jsonschema-specifications==2025.9.1
     # via jsonschema
+kiwisolver==1.5.1
+    # via matplotlib
 kubernetes==36.0.3
     # via chromadb
 lxml==6.1.2
     # via -r requirements.in
+mako==1.4.1
+    # via alembic
 markdown-it-py==4.2.0
     # via rich
 markupsafe==3.0.3
-    # via jinja2
+    # via
+    #   flask
+    #   jinja2
+    #   mako
+    #   werkzeug
+matplotlib==3.11.1
+    # via mlflow
 mdurl==0.1.2
     # via markdown-it-py
+mlflow==3.15.2
+    # via -r requirements.in
+mlflow-skinny==3.15.2
+    # via mlflow
+mlflow-tracing==3.15.2
+    # via mlflow
 mmh3==5.3.0
     # via chromadb
 mpmath==1.3.0
@@ -146,10 +229,15 @@ numpy==2.5.2
     # via
     #   -r requirements.in
     #   chromadb
+    #   contourpy
+    #   matplotlib
+    #   mlflow
     #   onnxruntime
+    #   pandas
     #   scikit-learn
     #   scipy
     #   sentence-transformers
+    #   skops
     #   transformers
 oauthlib==3.3.1
     # via requests-oauthlib
@@ -158,6 +246,8 @@ onnxruntime==1.29.0
 opentelemetry-api==1.44.0
     # via
     #   chromadb
+    #   mlflow-skinny
+    #   mlflow-tracing
     #   opentelemetry-exporter-otlp-proto-grpc
     #   opentelemetry-sdk
     #   opentelemetry-semantic-conventions
@@ -167,11 +257,15 @@ opentelemetry-exporter-otlp-proto-grpc==1.44.0
     # via chromadb
 opentelemetry-proto==1.44.0
     # via
+    #   mlflow-skinny
+    #   mlflow-tracing
     #   opentelemetry-exporter-otlp-proto-common
     #   opentelemetry-exporter-otlp-proto-grpc
 opentelemetry-sdk==1.44.0
     # via
     #   chromadb
+    #   mlflow-skinny
+    #   mlflow-tracing
     #   opentelemetry-exporter-otlp-proto-grpc
 opentelemetry-semantic-conventions==0.65b0
     # via opentelemetry-sdk
@@ -183,8 +277,18 @@ packaging==26.3
     # via
     #   build
     #   huggingface-hub
+    #   matplotlib
+    #   mlflow-skinny
+    #   mlflow-tracing
     #   onnxruntime
+    #   skops
     #   transformers
+pandas==2.3.3
+    # via mlflow
+pillow==12.3.0
+    # via matplotlib
+prettytable==3.18.0
+    # via skops
 propcache==0.5.2
     # via
     #   aiohttp
@@ -192,14 +296,27 @@ propcache==0.5.2
 protobuf==7.36.1
     # via
     #   googleapis-common-protos
+    #   mlflow-skinny
+    #   mlflow-tracing
     #   onnxruntime
     #   opentelemetry-proto
+pyarrow==25.0.1
+    # via mlflow
+pyasn1==0.6.4
+    # via pyasn1-modules
+pyasn1-modules==0.4.2
+    # via google-auth
 pybase64==1.5.0
     # via chromadb
+pycparser==3.0
+    # via cffi
 pydantic==2.13.5
     # via
     #   anthropic
     #   chromadb
+    #   fastapi
+    #   mlflow-skinny
+    #   mlflow-tracing
     #   pydantic-settings
 pydantic-core==2.46.5
     # via pydantic
@@ -207,6 +324,8 @@ pydantic-settings==2.15.0
     # via chromadb
 pygments==2.21.0
     # via rich
+pyparsing==3.3.2
+    # via matplotlib
 pypika==0.51.1
     # via chromadb
 pyproject-hooks==1.2.0
@@ -216,16 +335,24 @@ pyrate-limiter==4.4.0
     #   -r requirements.in
     #   sec-edgar-downloader
 python-dateutil==2.9.0.post0
-    # via kubernetes
+    # via
+    #   graphene
+    #   kubernetes
+    #   matplotlib
+    #   pandas
 python-dotenv==1.2.3
     # via
+    #   mlflow-skinny
     #   pydantic-settings
     #   uvicorn
+pytz==2026.3.post1
+    # via pandas
 pyyaml==6.0.3
     # via
     #   chromadb
     #   huggingface-hub
     #   kubernetes
+    #   mlflow-skinny
     #   transformers
     #   uvicorn
 referencing==0.37.0
@@ -237,7 +364,10 @@ regex==2026.9.3
 requests==2.34.2
     # via
     #   -r requirements.in
+    #   databricks-sdk
+    #   docker
     #   kubernetes
+    #   mlflow-skinny
     #   requests-oauthlib
     #   sec-edgar-downloader
 requests-oauthlib==2.0.0
@@ -253,11 +383,16 @@ rpds-py==2026.6.3
 safetensors==0.8.0
     # via transformers
 scikit-learn==1.9.0
-    # via sentence-transformers
+    # via
+    #   mlflow
+    #   sentence-transformers
+    #   skops
 scipy==1.18.1
     # via
+    #   mlflow
     #   scikit-learn
     #   sentence-transformers
+    #   skops
 sec-edgar-downloader==5.1.0
     # via -r requirements.in
 sentence-transformers==6.0.0
@@ -268,12 +403,26 @@ six==1.17.0
     # via
     #   kubernetes
     #   python-dateutil
+skops==0.14.0
+    # via mlflow
+smmap==5.0.3
+    # via gitdb
 sniffio==1.3.1
     # via anthropic
 soupsieve==2.9.2
     # via
     #   -r requirements.in
     #   beautifulsoup4
+sqlalchemy==2.0.52
+    # via
+    #   alembic
+    #   mlflow
+sqlparse==0.6.0
+    # via mlflow-skinny
+starlette==1.6.0
+    # via
+    #   fastapi
+    #   mlflow-skinny
 sympy==1.14.0
     # via torch
 tenacity==9.1.4
@@ -306,12 +455,16 @@ typer==0.27.2
 typing-extensions==4.16.0
     # via
     #   -r requirements.in
+    #   alembic
     #   anthropic
     #   anyio
     #   beautifulsoup4
     #   chromadb
+    #   fastapi
+    #   graphene
     #   grpcio
     #   huggingface-hub
+    #   mlflow-skinny
     #   opentelemetry-api
     #   opentelemetry-exporter-otlp-proto-grpc
     #   opentelemetry-sdk
@@ -319,29 +472,44 @@ typing-extensions==4.16.0
     #   pydantic
     #   pydantic-core
     #   sentence-transformers
+    #   sqlalchemy
     #   torch
     #   typing-inspection
 typing-inspection==0.4.4
     # via
+    #   fastapi
     #   pydantic
     #   pydantic-settings
+tzdata==2026.3
+    # via pandas
 urllib3==2.7.0
     # via
     #   -r requirements.in
+    #   docker
     #   kubernetes
     #   requests
 uvicorn[standard]==0.52.4
-    # via chromadb
+    # via
+    #   chromadb
+    #   mlflow-skinny
 uvloop==0.22.1
     # via uvicorn
 watchfiles==1.2.0
     # via uvicorn
+wcwidth==0.8.3
+    # via prettytable
 websocket-client==1.9.2
     # via kubernetes
 websockets==17.1
     # via uvicorn
+werkzeug==3.1.8
+    # via
+    #   flask
+    #   flask-cors
 yarl==1.24.5
     # via aiohttp
+zipp==4.1.0
+    # via importlib-metadata
 
 # The following packages are considered to be unsafe in a requirements file:
 # setuptools

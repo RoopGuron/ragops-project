@@ -1,6 +1,9 @@
 rag-ops-env
 **/.DS_Store
-corpus
+corpus/
+artifacts/
+mlruns/
+local/
 airflow/logs
 airflow/artifacts
 **/scribble*
@@ -8,6 +11,7 @@ airflow/artifacts
 **/chroma*/*
 project-plan
 **/.env
+mlflow.db
 terraform/.terraform/
 terraform/*.tfstate
 terraform/*.tfstate.*

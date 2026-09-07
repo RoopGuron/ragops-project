@@ -12,5 +12,7 @@ urllib3==2.7.0
 chromadb>=0.5
 sentence-transformers>=3.0
 numpy
-anthropic>=1.0
+anthropic<1.0
 mlflow>=2.0
+ragas==0.4.3
+anyio<4.15

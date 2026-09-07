@@ -17,7 +17,7 @@ from ingestion.embedder import DEFAULT_MODEL as DEFAULT_EMBEDDING_MODEL
 
 # DEFAULT_LLM_MODEL = "claude-opus-5"
 # cheaper eval loops
-DEFAULT_LLM_MODEL = "claude-sonnet-5"
+DEFAULT_LLM_MODEL = "claude-haiku-4-5-20251001"
 DEFAULT_COLLECTION = "sec_10k"
 
 

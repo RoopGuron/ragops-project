@@ -1,0 +1,6 @@
+# requirements/base.in
+chromadb>=0.5
+sentence-transformers>=3.0
+anthropic<1.0                 # load-bearing: 1.x drops temperature/top_p (env-pins note)
+anyio<4.15                    # NOT a direct import — constraint override: mlflow ui (eval path) breaks on 4.15+;
+                              # pinned here because base's transitive graph pulls anyio

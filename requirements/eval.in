@@ -1,0 +1,3 @@
+-r base.in
+ragas==0.4.3                  # load-bearing: workarounds in rag_eval.py are version-specific
+mlflow==3.16.0                # load-bearing: sqlite mlflow.db schema is coupled to this; bump == `mlflow db upgrade`

@@ -2,7 +2,7 @@
 
     python -m rag.query "How did NVIDIA's export-control risk disclosure change from 2022 to 2024?"
 
-Bulk eval + config sweeps live in evaluation/rag_eval.py
+Bulk eval + config sweeps live in evaluation/generate.py
 """
 
 import argparse
@@ -21,7 +21,7 @@ def _load_config() -> RagConfig:
     try:
         data = json.loads(Path(_CONFIG_PATH).read_text())
     except FileNotFoundError:
-        print(f"WARNING: {_CONFIG_PATH} not found; using winning config")
+        print(f"WARNING: {_CONFIG_PATH} not found; using defaults")
         return RagConfig()
     return RagConfig(**{k: v for k, v in data.items() if k not in _INFRA_KEYS})
 

@@ -1,37 +1,40 @@
-"""CLI for the RAGAS Evaluation path — mirrors `python -m ingestion.pipeline`.
+"""RAGAS judge — score an already-generated RAG run and log metrics to MLflow.
 
-    # run a whole eval set -> one JSON line per question
-    python -m evaluation.generate \
-      --eval evaluation/eval/qa_eval_set.jsonl \
-      --out artifacts/rag_run.jsonl \
-      --top-k 8 \
-      --per-doc-cap 2 \
-      --model claude-sonnet-5
+Stage 2 of the offline eval pipeline. Consumes the JSONL that
+`evaluation.generate` writes ({question, answer, contexts, reference_answer}
+per line) and adds three LLM-judged metrics to an existing run:
 
-    python -m evaluation.rag_eval \
-      --input_path artifacts/rag_run.jsonl \
-      --run_id <run_id from eval above like 392a8b6ed77642a3992e504346dd33b7>
+    faithfulness       - every claim in the answer grounded in the contexts
+    answer_relevancy   - the answer actually addresses the question
+    context_precision  - retrieved contexts are relevant and well ranked
 
-The --eval output is the hand-off artifact: the Day 2 "answers a handful
-correctly" check reads it by eye, and Week 2's Ragas run consumes
-{question, answer, contexts, reference_answer} from it. When the eval row
-carries expected_sources, each record also gets a recall@k score so retrieval
-quality is visible without spending any LLM tokens.
+    python -m evaluation.generate \\
+        --eval evaluation/eval/qa_eval_set.jsonl \\
+        --out artifacts/rag_run.jsonl --top-k 12 --per-doc-cap 3
+    # prints a run_id; params + mean_recall are logged there
+
+    python -m evaluation.ragas_eval \\
+        --input_path artifacts/rag_run.jsonl --run_id <that run_id>
+    # faithfulness / answer_relevancy / context_precision land on the SAME run
+
+--run_id is required: the judge always appends to the generate-stage run so a
+single MLflow row carries params + recall + judge metrics — that row is what
+the sweep comparison in the UI reads.
+
+RAGAS is pinned to 0.4.3 (requirements/eval.in): run_ragas_eval carries
+version-specific workarounds — the _map_provider_params monkeypatch and the
+_ProjectEmbeddings wrapper. Re-verify both on any ragas bump.
 """
+
 
 import os
 import anthropic
 import argparse
 import json
-import time
-import traceback
 from pathlib import Path
-from dataclasses import asdict
 
 import mlflow
-from contextlib import contextmanager
 
-from rag.answer import answer_question, Answer
 from rag.config import RagConfig
 from ragas import EvaluationDataset, evaluate
 from ragas.embeddings import BaseRagasEmbeddings
@@ -88,7 +91,10 @@ def run_ragas_eval(input_file: Path, config: RagConfig) -> None:
     api_key = os.environ.get("ANTHROPIC_API_KEY")
 
     if not workspace_id:
-        raise ValueError("ANTHROPIC_WORKSPACE_ID is empty after cleaning.")
+        raise ValueError("ANTHROPIC_WORKSPACE_ID is not set.")
+
+    if not api_key:
+        raise ValueError("ANTHROPIC_API_KEY is not set.")
 
     client = anthropic.Anthropic(
         api_key=api_key,
@@ -122,9 +128,8 @@ def run_ragas_eval(input_file: Path, config: RagConfig) -> None:
 def main() -> None:
     parser = argparse.ArgumentParser(description="Run the RAGAs evaluation on the RAG run results")
     parser.add_argument("--input_path", type=Path, required=True, help="path to the input JSONL file for evaluation")
-    parser.add_argument("--run_id", type=str, required=True, help="MLflow run ID to log metrics against")
+    parser.add_argument("--run_id", required=True, help="the generate-stage MLflow run to append judge metrics to — keeps params, recall, and judge scores on one run")
     parser.add_argument("--model", default=_DEFAULTS.llm_model, help="judge LLM model id")
-    parser.add_argument("--out", type=Path, help="write --eval results here (JSONL)")
     args = parser.parse_args()
 
     config = RagConfig(llm_model=args.model)

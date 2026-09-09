@@ -36,16 +36,19 @@ def generate(
 ) -> GenerationResult:
     workspace_id = os.environ.get("ANTHROPIC_WORKSPACE_ID")
     api_key = os.environ.get("ANTHROPIC_API_KEY")
-    
+
+    if not workspace_id:
+        raise ValueError("ANTHROPIC_WORKSPACE_ID is not set.")
+
+    if not api_key:
+        raise ValueError("ANTHROPIC_API_KEY is not set.")
+
     print(f"Anthropic workspace: {workspace_id or '(none)'}, model: {model}, max_tokens: {max_tokens}")
 
     client = anthropic.Anthropic(
         api_key=api_key,
         default_headers={"anthropic-workspace-id": workspace_id} if workspace_id else None
     )
-
-    if not workspace_id:
-        raise ValueError("ANTHROPIC_WORKSPACE_ID is empty after cleaning.")
 
     try:
         resp = client.messages.create(

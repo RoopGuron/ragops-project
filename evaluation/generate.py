@@ -1,21 +1,23 @@
-"""CLI for the RAGAS Evaluation path — mirrors `python -m ingestion.pipeline`.
+"""Bulk-generate RAG answers over the eval set and log the run to MLflow.
 
-    python -m evaluation.generate  \
-      --eval evaluation/eval/qa_eval_set.jsonl \
-      --out artifacts/rag_run_X.jsonl \
-      --top-k 12 --per-doc-cap 3
+Stage 1 of the offline eval pipeline. Per eval row: retrieve -> prompt ->
+generate -> parse citations, then score retrieval recall@k for free
+(metadata only, no LLM). Writes one record per question to --out and opens
+an MLflow run holding:
 
+    params   - the full RagConfig (top_k, per_doc_cap, llm_model, ...)
+    metrics  - mean_recall, execution_time_seconds
+    artifact - the output JSONL
 
-The --eval output is the hand-off artifact: the Day 2 "answers a handful
-correctly" check reads it by eye, and Week 2's Ragas run consumes
-{question, answer, contexts, reference_answer} from it.
-When the eval row
-carries expected_sources, each record also gets a recall@k score so retrieval
-quality is visible without spending any LLM tokens.
+    python -m evaluation.generate \\
+        --eval evaluation/eval/qa_eval_set.jsonl \\
+        --out artifacts/rag_run_wide+capped.jsonl --top-k 12 --per-doc-cap 3
+
+Prints the run_id; pass it to `evaluation.ragas_eval --run_id` so the judge
+metrics attach to this run. No ragas import here — this only produces the
+data the judge consumes.
 """
 
-import os
-import anthropic
 import argparse
 import json
 import time
@@ -28,8 +30,6 @@ from contextlib import contextmanager
 
 from rag.answer import answer_question, Answer
 from rag.config import RagConfig
-
-from ingestion.embedder import embed_texts
 
 
 _DEFAULTS = RagConfig()
@@ -141,19 +141,16 @@ def run_eval(path: Path, out: Path | None, config: RagConfig) -> None:
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Run the RAGAs evaluation on the RAG run results")
-    parser.add_argument("--eval", type=Path, help="path to a qa_eval_set.jsonl to run in bulk")
-    parser.add_argument("--out", type=Path, help="write --eval results here (JSONL)")
+    parser = argparse.ArgumentParser(description="Bulk-generate RAG answers over an eval set")
+    parser.add_argument("--eval", type=Path, required=True)
+    parser.add_argument("--out", type=Path)
     parser.add_argument("--top-k", type=int, default=_DEFAULTS.top_k)
     parser.add_argument("--per-doc-cap", type=int, default=_DEFAULTS.per_doc_cap)
-    parser.add_argument("--model", default=_DEFAULTS.llm_model, help="judge LLM model id")
+    parser.add_argument("--model", default=_DEFAULTS.llm_model)
     args = parser.parse_args()
 
     config = RagConfig(top_k=args.top_k, per_doc_cap=args.per_doc_cap, llm_model=args.model)
-
-    mlflow.set_experiment("RAG_Optimization_Engine")
-    with mlflow.start_run(run_id=args.run_id):
-        run_eval(args.input_path, args.out, config)
+    run_eval(args.eval, args.out, config)      # _tracked_run inside handles MLflow
 
 
 if __name__ == "__main__":

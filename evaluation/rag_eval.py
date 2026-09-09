@@ -1,11 +1,37 @@
+"""CLI for the RAGAS Evaluation path — mirrors `python -m ingestion.pipeline`.
+
+    # run a whole eval set -> one JSON line per question
+    python -m evaluation.generate \
+      --eval evaluation/eval/qa_eval_set.jsonl \
+      --out artifacts/rag_run.jsonl \
+      --top-k 8 \
+      --per-doc-cap 2 \
+      --model claude-sonnet-5
+
+    python -m evaluation.rag_eval \
+      --input_path artifacts/rag_run.jsonl \
+      --run_id <run_id from eval above like 392a8b6ed77642a3992e504346dd33b7>
+
+The --eval output is the hand-off artifact: the Day 2 "answers a handful
+correctly" check reads it by eye, and Week 2's Ragas run consumes
+{question, answer, contexts, reference_answer} from it. When the eval row
+carries expected_sources, each record also gets a recall@k score so retrieval
+quality is visible without spending any LLM tokens.
+"""
+
 import os
 import anthropic
 import argparse
 import json
+import time
+import traceback
 from pathlib import Path
+from dataclasses import asdict
 
 import mlflow
+from contextlib import contextmanager
 
+from rag.answer import answer_question, Answer
 from rag.config import RagConfig
 from ragas import EvaluationDataset, evaluate
 from ragas.embeddings import BaseRagasEmbeddings
@@ -61,15 +87,13 @@ def run_ragas_eval(input_file: Path, config: RagConfig) -> None:
     workspace_id = os.environ.get("ANTHROPIC_WORKSPACE_ID")
     api_key = os.environ.get("ANTHROPIC_API_KEY")
 
-    print(f"Anthropic workspace: {workspace_id or '(none)'}")
+    if not workspace_id:
+        raise ValueError("ANTHROPIC_WORKSPACE_ID is empty after cleaning.")
 
     client = anthropic.Anthropic(
         api_key=api_key,
         default_headers={"anthropic-workspace-id": workspace_id} if workspace_id else None
     )
-
-    if not workspace_id:
-        raise ValueError("ANTHROPIC_WORKSPACE_ID is empty after cleaning.")
 
     ragas_llm = llm_factory(model=config.llm_model, provider="anthropic", client=client, max_tokens=4096)
     # Workaround: RAGAS 0.4.3's InstructorModelArgs always sends BOTH temperature
@@ -98,8 +122,9 @@ def run_ragas_eval(input_file: Path, config: RagConfig) -> None:
 def main() -> None:
     parser = argparse.ArgumentParser(description="Run the RAGAs evaluation on the RAG run results")
     parser.add_argument("--input_path", type=Path, required=True, help="path to the input JSONL file for evaluation")
-    parser.add_argument("--run_id", type=str, default=None, help="MLflow run ID to log metrics under (resumes that run; omit to start a new one)")
+    parser.add_argument("--run_id", type=str, required=True, help="MLflow run ID to log metrics against")
     parser.add_argument("--model", default=_DEFAULTS.llm_model, help="judge LLM model id")
+    parser.add_argument("--out", type=Path, help="write --eval results here (JSONL)")
     args = parser.parse_args()
 
     config = RagConfig(llm_model=args.model)

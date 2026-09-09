@@ -2,31 +2,34 @@ import json
 from dataclasses import asdict
 from pathlib import Path
 
+from rag.config import RagConfig
+from rag.serving import RagPipeline
+
 import mlflow
 from mlflow import MlflowClient
-
-from rag.config import RagConfig
-from rag.pipeline_model import RagPipeline
 
 WINNER_RUN_ID = "86e93f8be6c84159b0ba34d97d33cb29"
 MODEL_NAME = "rag-query-path"
 
+CHAMPION_CONFIG = Path("rag/champion_config.json")
+_INFRA_KEYS = {"chroma_host", "chroma_port"}   # deployment config — stays in env, not in the file
+
+# the winner, declared ONCE, here
 cfg = RagConfig(top_k=12, per_doc_cap=3)
-Path("artifacts").mkdir(exist_ok=True)
-cfg_path = "artifacts/winning_config.json"
-Path(cfg_path).write_text(json.dumps(asdict(cfg), indent=2))
+data = {k: v for k, v in asdict(cfg).items() if k not in _INFRA_KEYS}
+CHAMPION_CONFIG.write_text(json.dumps(data, indent=2))
 
 mlflow.set_experiment("RAG_Optimization_Engine")
 with mlflow.start_run(run_id=WINNER_RUN_ID):          # attach to the winner run — keeps lineage
     info = mlflow.pyfunc.log_model(
         name="rag_pipeline",
         python_model=RagPipeline(),
-        artifacts={"config": cfg_path},
+        artifacts={"config": str(CHAMPION_CONFIG)},
         code_paths=["rag", "ingestion"],             # packages the modules into the model
-        pip_requirements="requirements.txt",
+        pip_requirements="requirements/serve.txt",
         registered_model_name=MODEL_NAME,
-        input_example={"question": ["What did NVIDIA disclose about export controls in its 2024 10-K?"]},
     )
+
 
 client = MlflowClient()
 version = info.registered_model_version

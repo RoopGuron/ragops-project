@@ -1,0 +1,11 @@
+{
+  "collection_name": "sec_10k",
+  "embedding_model": "sentence-transformers/all-MiniLM-L6-v2",
+  "llm_model": "claude-haiku-4-5-20251001",
+  "top_k": 12,
+  "per_doc_cap": 3,
+  "fanout": false,
+  "max_context_chars": 32000,
+  "max_tokens": 1024,
+  "prompt_version": "answer_v1"
+}

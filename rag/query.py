@@ -6,24 +6,9 @@ Bulk eval + config sweeps live in evaluation/generate.py
 """
 
 import argparse
-import json
-import os
-from pathlib import Path
 
 from rag.answer import answer_question
-from rag.config import RagConfig
-
-_CONFIG_PATH = os.getenv("RAG_CONFIG_PATH", "rag/champion_config.json")
-_INFRA_KEYS = {"chroma_host", "chroma_port"}
-
-
-def _load_config() -> RagConfig:
-    try:
-        data = json.loads(Path(_CONFIG_PATH).read_text())
-    except FileNotFoundError:
-        print(f"WARNING: {_CONFIG_PATH} not found; using defaults")
-        return RagConfig()
-    return RagConfig(**{k: v for k, v in data.items() if k not in _INFRA_KEYS})
+from rag.config import load_config
 
 
 def main() -> None:
@@ -31,7 +16,7 @@ def main() -> None:
     parser.add_argument("question")
     args = parser.parse_args()
 
-    ans = answer_question(args.question, config=_load_config())
+    ans = answer_question(args.question, config= load_config())
     print(ans.text.strip() or "(empty answer)")
     print("-" * 72)
     print(f"retrieved: {ans.retrieval.get('retrieved', [])}")

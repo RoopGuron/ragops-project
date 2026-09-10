@@ -12,7 +12,8 @@ network (same pattern as airflow/dags/ingest_docs_dag.py).
 
 import os
 from dataclasses import dataclass
-
+import json
+from pathlib import Path
 from ingestion.embedder import DEFAULT_MODEL as DEFAULT_EMBEDDING_MODEL
 
 # DEFAULT_LLM_MODEL = "claude-opus-5"
@@ -20,6 +21,8 @@ from ingestion.embedder import DEFAULT_MODEL as DEFAULT_EMBEDDING_MODEL
 DEFAULT_LLM_MODEL = "claude-haiku-4-5-20251001"
 DEFAULT_COLLECTION = "sec_10k"
 
+_CONFIG_PATH = os.getenv("RAG_CONFIG_PATH", "rag/champion_config.json")
+_INFRA_KEYS = frozenset(["chroma_host", "chroma_port"])
 
 @dataclass(frozen=True)
 class RagConfig:
@@ -40,3 +43,13 @@ class RagConfig:
     max_tokens: int = 1024           # LLM answer cap
 
     prompt_version: str = "answer_v1"
+
+
+def load_config(config_path: str = _CONFIG_PATH, 
+                filter_out_keys: frozenset[str] = _INFRA_KEYS) -> RagConfig:
+    try:
+        data = json.loads(Path(config_path).read_text())
+    except FileNotFoundError:
+        print(f"WARNING: {config_path} not found; using defaults")
+        return RagConfig()
+    return RagConfig(**{k: v for k, v in data.items() if k not in filter_out_keys})

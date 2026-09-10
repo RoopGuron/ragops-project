@@ -26,6 +26,21 @@ services:
     depends_on:
       - chromadb
 
+  rag-api:
+    build:
+      context: ../
+      dockerfile: Dockerfile
+    container_name: rag-api
+    ports:
+      - "8080:8000"
+    environment:
+      - CHROMA_HOST=chromadb   # container hostname, not localhost
+      - CHROMA_PORT=8000       # chromadb's *internal* port, not the 8000 host-mapping
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - ANTHROPIC_WORKSPACE_ID=${ANTHROPIC_WORKSPACE_ID}
+    depends_on:
+      - chromadb
+
 # volumes:
 #   chroma-data:
 

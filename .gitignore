@@ -1,4 +1,6 @@
 rag-ops-env
+streaming/kafka-client-venv
+streaming/.manifest.json
 **/.DS_Store
 corpus/
 artifacts/
@@ -12,6 +14,7 @@ airflow/artifacts
 project-plan
 **/.env
 mlflow.db*
+**/*.pem
 terraform/.terraform/
 terraform/*.tfstate
 terraform/*.tfstate.*

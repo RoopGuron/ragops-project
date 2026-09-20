@@ -1,0 +1,8 @@
+Context passages:
+
+{context}
+
+---
+Question: {question}
+
+Answer using only the context passages above. Follow the citation and grounding rules exactly. If the passages do not contain enough to answer, say so plainly instead of guessing.

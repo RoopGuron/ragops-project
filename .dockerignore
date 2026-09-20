@@ -1,0 +1,31 @@
+# Local dependency directories
+**/node_modules/
+rag-ops-env/
+**/.env
+**/*.db
+**/*.md
+terraform/
+
+# Source control configurations
+.git
+.gitignore
+
+# IDE config folders and operating system metadata
+.vscode/
+.idea/
+.DS_Store
+
+# Log files and local test build outputs
+**/*.log
+airflow/
+corpus/
+artifacts/
+evaluation/
+local/
+mlruns/
+project-plan/
+pull_10k_corpus.py
+**/__pycache__/
+
+requirements/*
+!requirements/serve.txt

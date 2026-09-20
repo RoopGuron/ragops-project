@@ -1,6 +1,11 @@
 rag-ops-env
+streaming/kafka-client-venv
+streaming/.manifest.json
 **/.DS_Store
-corpus
+corpus/
+artifacts/
+mlruns/
+local/
 airflow/logs
 airflow/artifacts
 **/scribble*
@@ -8,3 +13,11 @@ airflow/artifacts
 **/chroma*/*
 project-plan
 **/.env
+mlflow.db*
+**/*.pem
+terraform/.terraform/
+terraform/*.tfstate
+terraform/*.tfstate.*
+terraform/terraform.tfvars
+terraform/*.tfplan
+terraform/crash.log

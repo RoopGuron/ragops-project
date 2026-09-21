@@ -22,3 +22,10 @@ terraform/terraform.tfvars
 terraform/*.tf*plan
 terraform/tf*plan
 terraform/crash.log
+terraform/storage/.terraform/
+terraform/storage/*.tfstate
+terraform/storage/*.tfstate.*
+terraform/storage/terraform.tfvars
+terraform/storage/*.tf*plan
+terraform/storage/tf*plan
+terraform/storage/crash.log

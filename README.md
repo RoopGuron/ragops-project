@@ -56,6 +56,51 @@ that chicken-and-egg dependency.
 this is what keeps a "always on" ~$150+/mo bill down to genuine active-use
 compute. See `project-plan/` for the full cost reasoning.
 
+## Week 3 design decisions
+
+Week 3 moves ingestion from Airflow to Kubeflow Pipelines (KFP) on the GKE
+Autopilot cluster and adds KServe model serving. These are the placement
+decisions the rest of the week builds on.
+
+**Trigger path.** Week 2: Aiven Kafka -> consumer -> Airflow `ingest_docs` DAG.
+Week 3: Aiven Kafka -> consumer -> KFP run. Only the trigger step changes.
+The consumer keeps its per-message commit + seek-retry behaviour: the offset
+is committed only after the KFP run is successfully *submitted*. The two
+consumers must never run at the same time (same group would split messages,
+different groups would both fire).
+
+**Consumer location.** Starts on the laptop, reading Aiven as today and
+submitting runs to the KFP API through
+`kubectl port-forward svc/ml-pipeline -n kubeflow 8888`. Stretch goal:
+containerize it (amd64 image on GHCR, Aiven credentials in a Kubernetes
+Secret) and run it as a Deployment in GKE against the in-cluster KFP service.
+
+**ChromaDB.** Moves into GKE as a StatefulSet with a PersistentVolumeClaim.
+The KFP `index` step writes to it and the RAG API reads from it. The volume is
+lost on `terraform destroy`; that is acceptable because the pipeline rebuilds
+the index, and it doubles as a demo of the pipeline working end to end.
+
+**Source documents.** `corpus/` is gitignored and lives on the laptop, so KFP
+pods cannot read it. The `ingest` step pulls filings from a Google Cloud
+Storage (GCS) bucket in `us-west1` (same region as the cluster, to avoid
+egress charges). The bucket must survive the daily `terraform destroy`, so it
+lives in its own Terraform root with separate state (for example
+`terraform/storage/`) rather than alongside the cluster. Pod access to the
+bucket goes through Workload Identity (details to be worked out on Day 1).
+
+**Airflow.** Retired from the Kafka path but kept in the repo as the Week 2
+baseline (`airflow/`). The Compose containers (`scheduler`, `webserver`,
+`postgres`) can be stopped to free Docker memory.
+
+**Not decided yet.** Kubernetes version compatibility with KFP and KServe
+(cluster runs GKE 1.35.x), how KServe canary traffic is split in RawDeployment
+mode (Gateway API is already enabled on the cluster), and regional quota
+increases (E2_CPUS 8, IN_USE_ADDRESSES 4 at time of writing).
+
+**Autopilot note.** A fresh Autopilot cluster has no nodes until a workload is
+deployed, so kube-system pods sit Pending after `terraform apply`. Deploy any
+small workload to trigger node provisioning.
+
 ## Repo layout
 
 ```

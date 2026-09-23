@@ -1,0 +1,33 @@
+# Kubeflow Pipelines cluster-scoped prerequisites (CRDs + the `kubeflow`
+# namespace itself), pinned to 2.17.0 — same ref as ../kfp.
+#
+# This MUST be applied before ../kfp: env/dev (../kfp's base) assumes the
+# `kubeflow` namespace and the Application CRD (app.k8s.io/v1beta1) already
+# exist; it doesn't create either itself. Applying ../kfp first fails two
+# ways in sequence:
+#   1. "namespaces \"kubeflow\" not found" (no namespace.yaml in env/dev)
+#   2. "no matches for kind \"Application\" in version \"app.k8s.io/v1beta1\":
+#      ensure CRDs are installed first" (once the namespace exists but the
+#      CRD from this overlay hasn't been applied yet)
+#
+# Usage (see DEV_START.md):
+#   kubectl apply -k k8s/kfp-cluster-scoped
+#   kubectl wait --for condition=established --timeout=60s crd/applications.app.k8s.io
+#   kubectl apply -k k8s/kfp
+#
+# No Autopilot/Warden patches needed here — unlike ../kfp, everything this
+# overlay creates is either a CRD (no admission concerns) or RBAC bound to a
+# real ServiceAccount (kubeflow-pipelines-cache-deployer-sa), not the
+# wildcard system:authenticated group that tripped Warden in ../kfp. The
+# cache-deployer ClusterRole/ClusterRoleBinding/SA it installs are inert
+# (the Deployment that would use them is patched out in ../kfp — see that
+# file's issue #3) but harmless, so left as-is rather than patched out too.
+#
+# Bump the `ref=` below together with ../kfp's if you move to a newer KFP
+# release.
+
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - github.com/kubeflow/pipelines/manifests/kustomize/cluster-scoped-resources?ref=2.17.0

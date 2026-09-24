@@ -1,0 +1,3 @@
+# requirements/kfp.in
+kfp
+kfp-kubernetes

@@ -27,5 +27,10 @@ project-plan/
 pull_10k_corpus.py
 **/__pycache__/
 
+ingestion/ingest-venv
+**/__pycache__
+**/*.pyc
+
 requirements/*
 !requirements/serve.txt
+!requirements/ingest.txt

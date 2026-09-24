@@ -51,7 +51,18 @@ quota is 250GB and disks from a cluster torn down without `make cluster-down`
 can orphan and eat into it (`gcloud compute disks list` to check for
 unattached `pvc-*` disks).
 
-## 4. Port-forward the KFP UI
+## 4. Deploy Chroma
+
+```bash
+make chroma
+```
+
+Applies `k8s/chroma` (StatefulSet + PVC + Service in the `ragops` namespace)
+and prints the pod and PVC status. The pod should reach `Running` and the PVC
+`Bound`. The store starts empty every day — repopulate it by re-running the
+ingest pipeline.
+
+## 5. Port-forward the KFP UI
 
 ```bash
 make port-forward
@@ -65,12 +76,28 @@ Open `http://localhost:8080`.
 make cluster-down
 ```
 
-This runs `kubectl delete ns kubeflow --wait=true` before `terraform
-destroy` — without it, the dynamically-provisioned PDs behind
-`mysql-pv-claim`/`seaweedfs-pvc` orphan (deleting the cluster doesn't go
-through the Kubernetes API, so the CSI driver never gets a chance to clean
-them up) and silently eat into the `SSD_TOTAL_GB` quota until the next
-`kubectl apply -k k8s/kfp` fails to schedule.
+This deletes **every namespace that owns a PVC** (`kubeflow` and `ragops`),
+waiting for each to finish, and only then runs `terraform destroy`. The order
+matters: deleting the cluster doesn't go through the Kubernetes API, so the
+CSI driver never gets a chance to delete the dynamically-provisioned PDs
+behind `mysql-pv-claim`/`seaweedfs-pvc` (KFP) and Chroma's PVC. Orphaned
+disks silently eat into the `SSD_TOTAL_GB` quota (250GB on the free trial)
+until a later `kubectl apply` fails to schedule. Any new namespace that gets
+a PVC (e.g. KServe model storage later) must be added to this list.
+
+Chroma's data does not survive this — every storage class on the cluster has
+`reclaimPolicy: Delete`, so the PVC and disk are destroyed with the
+namespace. That's intended: the corpus lives in the GCS bucket, and Chroma is
+repopulated by re-running the ingest pipeline each morning.
+
+After it finishes, confirm nothing leaked:
+
+```bash
+gcloud compute disks list --format="table(name,sizeGb,type,users)"
+```
+
+The list should be empty. Any `pvc-*` disk with no `users` is an orphan —
+delete it with `gcloud compute disks delete <name> --zone=<zone>`.
 
 **Do NOT** run `terraform destroy` inside `terraform/storage/` — that's a
 separate state holding the corpus bucket, and it must survive the daily

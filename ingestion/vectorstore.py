@@ -8,10 +8,12 @@ same idempotency the incremental-ingestion logic (week 1, tomorrow) and the
 Kafka-triggered re-ingestion (week 2) both depend on.
 """
 
+import os
 import chromadb
 
-DEFAULT_HOST = "localhost"
-DEFAULT_PORT = 8000
+DEFAULT_HOST = os.getenv("CHROMA_HOST", "localhost")
+DEFAULT_PORT = int(os.getenv("CHROMA_PORT", "8000"))
+
 DEFAULT_COLLECTION = "sec_10k"
 UPSERT_BATCH_SIZE = 100  # stay comfortably under Chroma's per-request payload limit
 

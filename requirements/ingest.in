@@ -1,0 +1,3 @@
+# requirements/ingest.in
+-r base.in
+google-cloud-storage

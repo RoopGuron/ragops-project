@@ -9,7 +9,6 @@ scheduler.
 """
 
 import argparse
-import json
 from pathlib import Path
 
 from ingestion.loader import load_documents, DEFAULT_MANIFEST
@@ -33,7 +32,8 @@ def run_ingestion(
     docs = load_documents(manifest_path)
     if not docs:
         print("no documents to ingest — check that pull_10k_corpus.py has been run")
-        return {"documents": 0, "chunks": 0}
+        return {"documents": 0, "skipped": 0, "chunks": 0}
+
 
     # 2. chunk
     # Connect to your running Chroma remote container server
@@ -44,7 +44,7 @@ def run_ingestion(
     parent_doc_ids = [getattr(doc, "doc_id", str(i)) for i, doc in enumerate(docs)] # Assumes doc object has an .id attribute
     query_batch_size = 100
     existing = {"metadatas": []}
-    # Loop through the parent_doc_ids in blocks of 5,000
+    # Loop through the parent_doc_ids in blocks of 100
     for i in range(0, len(parent_doc_ids), query_batch_size):
         batch_ids = parent_doc_ids[i : i + query_batch_size]
         
@@ -98,7 +98,8 @@ def run_ingestion(
     # 4. upsert
     # Short circuit early if everything was skipped and there's nothing to execute
     if not all_chunks:
-        return json.dumps({"status": "Skipped. Collection is completely up to date.", "chunks": 0, "embeddings": 0})
+        return {"documents": len(docs), "skipped": skipped_docs_count, "chunks": 0}
+
 
     # 2. Connect to the Chroma Container Server
     client = chromadb.HttpClient(host=chroma_host, port=chroma_port)
@@ -114,8 +115,7 @@ def run_ingestion(
         host=chroma_host, port=chroma_port, collection_name=collection_name,
     )
 
-    return {"documents": len(docs), "chunks": len(all_chunks)}
-
+    return {"documents": len(docs), "skipped": skipped_docs_count, "chunks": len(all_chunks)}
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Run the RAGOps ingestion pipeline")

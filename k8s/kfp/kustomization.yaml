@@ -122,3 +122,25 @@ patches:
       metadata:
         name: cache-server
         namespace: kubeflow
+  - patch: |-
+      $patch: delete
+      apiVersion: apps/v1
+      kind: Deployment
+      metadata:
+        name: ml-pipeline-visualizationserver
+        namespace: kubeflow
+  - patch: |-
+      $patch: delete
+      apiVersion: apps/v1
+      kind: Deployment
+      metadata:
+        name: ml-pipeline-viewer-crd
+        namespace: kubeflow
+  - patch: |-
+      $patch: delete
+      apiVersion: apps/v1
+      kind: Deployment
+      metadata:
+        name: ml-pipeline-scheduledworkflow
+        namespace: kubeflow
+

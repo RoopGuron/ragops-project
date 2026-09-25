@@ -62,13 +62,49 @@ and prints the pod and PVC status. The pod should reach `Running` and the PVC
 `Bound`. The store starts empty every day — repopulate it by re-running the
 ingest pipeline.
 
-## 5. Port-forward the KFP UI
+## 5. Deploy MLflow
 
 ```bash
-make port-forward
+make mlflow
 ```
 
-Open `http://localhost:8080`.
+Applies `k8s/mlflow` (StatefulSet + headless Service + PVC in the `ragops`
+namespace). **Run this after `make chroma`:** the `ragops` namespace is
+created by `k8s/chroma`, and `k8s/mlflow` does not create it, so on a fresh
+cluster running MLflow first fails with `namespaces "ragops" not found`.
+
+In-cluster pipeline steps reach it at
+`http://mlflow.ragops.svc.cluster.local:5000`. To open its UI from your
+laptop, see step 7.
+
+## 6. Create the Anthropic Secret
+
+```bash
+make secrets
+```
+
+Creates the `anthropic-credentials` Secret in the `kubeflow` namespace from
+`local/anthropic.env`, which the eval pipeline step reads through
+`use_secret_as_env`. Run it after `make kfp` (it needs the `kubeflow`
+namespace) and before starting a pipeline run — without it the eval step pod
+never starts. It is safe to re-run. The Secret is destroyed with the cluster,
+so this is a daily step.
+
+One-time setup: `local/anthropic.env` (gitignored, `chmod 600`) holds exactly
+two lines, `ANTHROPIC_API_KEY=...` and `ANTHROPIC_WORKSPACE_ID=...`. Never put
+these in `k8s/` or in the image — the ghcr package is public.
+
+## 7. Port-forward the UIs
+
+Each port-forward holds its terminal open, so run them in separate
+terminals. They also drop if the laptop sleeps — just re-run them.
+
+| UI | Command | URL |
+|---|---|---|
+| Kubeflow Pipelines | `make port-forward` | `http://localhost:8080` |
+| MLflow | `kubectl port-forward -n ragops svc/mlflow 5001:5000` | `http://localhost:5001` |
+
+MLflow uses local port 5001 because macOS reserves 5000 for AirPlay.
 
 ## End of day
 

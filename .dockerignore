@@ -20,17 +20,18 @@ terraform/
 airflow/
 corpus/
 artifacts/
-evaluation/
 local/
 mlruns/
 project-plan/
 pull_10k_corpus.py
 **/__pycache__/
 
-ingestion/ingest-venv
+ingestion/ingest-venv/
+evaluation/evaluation-venv/
 **/__pycache__
 **/*.pyc
 
 requirements/*
 !requirements/serve.txt
 !requirements/ingest.txt
+!requirements/eval.txt

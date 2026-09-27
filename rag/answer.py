@@ -80,6 +80,7 @@ def answer_question(question: str, *, config: RagConfig | None = None, where: di
         port=config.chroma_port,
         collection_name=config.collection_name,
         embedding_model=config.embedding_model,
+        embedding_endpoint=config.embedding_endpoint,
     )
     if config.per_doc_cap:
         chunks = cap_per_doc(chunks, config.per_doc_cap)

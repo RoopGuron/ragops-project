@@ -37,7 +37,7 @@ cd terraform
 # terraform.tfvars (gitignored): project_id, billing_account_id
 terraform init
 terraform apply
-gcloud container clusters get-credentials <cluster_name> --region <region> --project <project_id>
+gcloud container clusters get-credentials <cluster_name> --zone <zone> --project <project_id>
 kubectl get nodes   # confirm kubectl is talking to the cluster
 ```
 
@@ -100,6 +100,29 @@ increases (E2_CPUS 8, IN_USE_ADDRESSES 4 at time of writing).
 **Autopilot note.** A fresh Autopilot cluster has no nodes until a workload is
 deployed, so kube-system pods sit Pending after `terraform apply`. Deploy any
 small workload to trigger node provisioning.
+
+## Reproducibility check
+
+The KFP pipeline (`ingest` then `ragas_eval`) was run on a freshly created
+cluster with an empty Chroma index: the corpus came from GCS, was chunked,
+embedded and upserted in-cluster, and the eval set was then run against it
+with the Week 2 champion config (`wide+capped`: `top_k=12`, `per_doc_cap=3`).
+
+`mean_recall` was **0.8819583333333334**, identical to the original local
+champion run. Recall is computed from retrieved-source metadata only, with no
+LLM judge, so an exact match means the cluster retrieved the same chunks for
+every eval question. The corpus, chunking, embeddings, index and retrieval
+config all reproduce end to end.
+
+The LLM-judged metrics do not match exactly, as expected. Across the runs
+compared, faithfulness ranged 0.78–0.82, answer_relevancy 0.55–0.61 and
+context_precision 0.09–0.17, all with identical recall. That spread is judge
+and generation noise on a small eval set, not a pipeline difference, and
+context_precision is the noisiest. Context precision stays low while recall
+is high (0.88): retrieval finds the right filings but returns many irrelevant
+chunks, which is what the Week 3 reranker is meant to address. Because of the
+noise, the reranker comparison should use the mean of several baseline runs
+(and several reranker runs), not a single pair.
 
 ## Repo layout
 

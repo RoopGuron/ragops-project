@@ -28,6 +28,7 @@ _INFRA_KEYS = frozenset(["chroma_host", "chroma_port"])
 class RagConfig:
     chroma_host: str = os.getenv("CHROMA_HOST", "localhost")
     chroma_port: int = int(os.getenv("CHROMA_PORT", "8000"))
+    embedding_endpoint: str = os.getenv("EMBEDDING_ENDPOINT", "")
     collection_name: str = DEFAULT_COLLECTION
 
     # MUST match the model ingestion embedded the corpus with — a mismatch

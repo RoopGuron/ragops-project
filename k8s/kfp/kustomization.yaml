@@ -143,4 +143,73 @@ patches:
       metadata:
         name: ml-pipeline-scheduledworkflow
         namespace: kubeflow
+  - patch: |-
+      $patch: delete
+      apiVersion: apps/v1
+      kind: Deployment
+      metadata:
+        name: metadata-writer
+        namespace: kubeflow
+  - patch: |-
+      apiVersion: apps/v1
+      kind: Deployment
+      metadata:
+        name: metadata-envoy-deployment
+        namespace: kubeflow
+      spec:
+        template:
+          spec:
+            containers:
+              - name: container
+                resources:
+                  requests:
+                    cpu: 250m
+                    memory: 512Mi
+                  limits:
+                    cpu: 250m
+                    memory: 512Mi
+  - patch: |-
+      apiVersion: apps/v1
+      kind: Deployment
+      metadata:
+        name: metadata-grpc-deployment
+        namespace: kubeflow
+      spec:
+        template:
+          spec:
+            containers:
+              - name: container
+                resources:
+                  requests:
+                    cpu: 250m
+                    memory: 512Mi
+                  limits:
+                    cpu: 250m
+                    memory: 512Mi
+  - patch: |-
+      apiVersion: apps/v1
+      kind: Deployment
+      metadata:
+        name: ml-pipeline
+        namespace: kubeflow
+      spec:
+        template:
+          spec:
+            containers:
+              - name: ml-pipeline-api-server
+                env:
+                  - name: V2_DRIVER_IMAGE
+                    value: ghcr.io/kubeflow/kfp-driver:2.17.0
+                  - name: V2_LAUNCHER_IMAGE
+                    value: ghcr.io/kubeflow/kfp-launcher:2.17.0
+
+images:
+  - name: ghcr.io/kubeflow/kfp-api-server
+    newTag: 2.17.0
+  - name: ghcr.io/kubeflow/kfp-frontend
+    newTag: 2.17.0
+  - name: ghcr.io/kubeflow/kfp-persistence-agent
+    newTag: 2.17.0
+  - name: ghcr.io/kubeflow/kfp-metadata-envoy
+    newTag: 2.17.0
 

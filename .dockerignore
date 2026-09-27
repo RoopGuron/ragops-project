@@ -35,3 +35,4 @@ requirements/*
 !requirements/serve.txt
 !requirements/ingest.txt
 !requirements/eval.txt
+!requirements/embedder.txt

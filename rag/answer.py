@@ -17,7 +17,7 @@ from rag.config import RagConfig
 from rag.generator import generate
 from rag.prompt import build_prompt
 from rag.retriever import RetrievedChunk, cap_per_doc, retrieve
-
+from rag.reranker import rerank
 
 @dataclass
 class Citation:
@@ -82,6 +82,10 @@ def answer_question(question: str, *, config: RagConfig | None = None, where: di
         embedding_model=config.embedding_model,
         embedding_endpoint=config.embedding_endpoint,
     )
+
+    if config.reranker_endpoint:
+        chunks = rerank(question, chunks, config.reranker_endpoint)
+
     if config.per_doc_cap:
         chunks = cap_per_doc(chunks, config.per_doc_cap)
 

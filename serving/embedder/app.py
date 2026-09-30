@@ -35,4 +35,5 @@ class Embedder(kserve.Model):
         return {"predictions": embed_texts(payload["instances"])}
 
 if __name__=="__main__":
-    kserve.ModelServer().start([Embedder("embedder")])
+    model_name = os.environ.get("MODEL_NAME", "embedder")
+    kserve.ModelServer().start([Embedder(model_name)])

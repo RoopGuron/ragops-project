@@ -1,0 +1,26 @@
+apiVersion: serving.kserve.io/v1beta1
+kind: InferenceService
+metadata:
+  name: embedder-b
+  namespace: ragops
+spec:
+  predictor:
+    containers:
+      - name: kserve-container
+        image: ghcr.io/roopguron/ragops-embedder:0.0.2
+        imagePullPolicy: Always
+        ports:
+          - containerPort: 8080
+            protocol: TCP
+        env:
+          - name: OMP_NUM_THREADS
+            value: "2"
+          - name: MODEL_NAME
+            value: "embedder-b"
+        resources:
+          requests:
+            cpu: 500m
+            memory: 1.5Gi
+          limits:
+            cpu: "1"
+            memory: 3Gi

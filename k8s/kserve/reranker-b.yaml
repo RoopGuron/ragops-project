@@ -1,0 +1,28 @@
+apiVersion: serving.kserve.io/v1beta1
+kind: InferenceService
+metadata:
+  name: reranker-b
+  namespace: ragops
+spec:
+  predictor:
+    containers:
+      - name: kserve-container
+        image: ghcr.io/roopguron/ragops-reranker:0.0.1
+        imagePullPolicy: Always
+        ports:
+          - containerPort: 8080
+            protocol: TCP
+        env:
+          - name: MODEL_NAME
+            value: "reranker-b"
+          - name: MODEL_CHECKPOINT
+            value: "cross-encoder/ms-marco-MiniLM-L-12-v2"
+          - name: OMP_NUM_THREADS
+            value: "2"
+        resources:
+          requests:
+            cpu: 500m
+            memory: 1.5Gi
+          limits:
+            cpu: "1"
+            memory: 4Gi

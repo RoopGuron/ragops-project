@@ -36,3 +36,4 @@ requirements/*
 !requirements/ingest.txt
 !requirements/eval.txt
 !requirements/embedder.txt
+!requirements/reranker.txt

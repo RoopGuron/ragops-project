@@ -1,0 +1,14 @@
+apiVersion: serving.kserve.io/v1alpha1
+kind: InferenceGraph
+metadata:
+  name: embedding-router
+  namespace: ragops
+spec:
+  nodes:
+    root:
+      routerType: Splitter
+      steps:
+        - serviceName: embedder
+          weight: 70
+        - serviceName: embedder-b
+          weight: 30

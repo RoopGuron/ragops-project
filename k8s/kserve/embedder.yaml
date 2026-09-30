@@ -7,7 +7,8 @@ spec:
   predictor:
     containers:
       - name: kserve-container
-        image: ghcr.io/roopguron/ragops-embedder:0.0.1
+        image: ghcr.io/roopguron/ragops-embedder:0.0.2
+        imagePullPolicy: Always
         ports:
           - containerPort: 8080
             protocol: TCP

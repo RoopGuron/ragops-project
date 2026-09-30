@@ -108,11 +108,11 @@ def _build_where(row: dict) -> dict | None:
     return conds[0] if len(conds) == 1 else {"$and": conds}
 
 
-def run_eval(path: Path, out: Path | None, config: RagConfig) -> None:
+def run_eval(path: Path, out: Path | None, config: RagConfig) -> str:
     rows = [json.loads(line) for line in path.read_text().splitlines() if line.strip()]
     print(f"loaded {len(rows)} eval questions from {path}")
 
-    with _tracked_run(config):
+    with _tracked_run(config) as run:
         records, recalls = [], []
         for row in rows:
             print(f"\n=== {row.get('id', '?')} === {row.get('question', '(no question)')} === {row.get('expected_sources', [])}")
@@ -138,6 +138,8 @@ def run_eval(path: Path, out: Path | None, config: RagConfig) -> None:
                     f.write(json.dumps(rec) + "\n")
             print(f"wrote {len(records)} records to {out}")
             mlflow.log_artifact(str(out))
+
+        return run.info.run_id
 
 
 def main() -> None:

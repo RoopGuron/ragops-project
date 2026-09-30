@@ -3,7 +3,8 @@ locals {
     "compute.googleapis.com",
     "container.googleapis.com",
     "iam.googleapis.com",
-    "billingbudgets.googleapis.com"
+    "billingbudgets.googleapis.com",
+    "artifactregistry.googleapis.com"
   ]
 }
 

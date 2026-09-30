@@ -1,0 +1,14 @@
+apiVersion: serving.kserve.io/v1alpha1
+kind: InferenceGraph
+metadata:
+  name: reranking-router
+  namespace: ragops
+spec:
+  nodes:
+    root:
+      routerType: Splitter
+      steps:
+        - serviceName: reranker
+          weight: 70
+        - serviceName: reranker-b
+          weight: 30

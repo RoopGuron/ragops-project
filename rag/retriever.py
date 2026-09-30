@@ -22,6 +22,7 @@ import re
 from dataclasses import dataclass
 
 import chromadb
+import httpx   # already in the dependency tree via chromadb — no new package needed
 
 from ingestion.embedder import DEFAULT_MODEL, embed_texts
 from rag.config import DEFAULT_COLLECTION
@@ -85,11 +86,21 @@ def retrieve(
     port: int = 8000,
     collection_name: str = DEFAULT_COLLECTION,
     embedding_model: str = DEFAULT_MODEL,
+    embedding_endpoint: str = "",
 ) -> list[RetrievedChunk]:
     if not question or not question.strip():
         return []
 
-    q_emb = embed_texts([question], model_name=embedding_model)[0]
+    if embedding_endpoint:
+        resp = httpx.post(
+            f"{embedding_endpoint}/v1/models/embedder:predict",
+            json={"instances": [question]},
+            timeout=5.0,
+        )
+        resp.raise_for_status()
+        q_emb = resp.json()["predictions"][0]
+    else:
+        q_emb = embed_texts([question], model_name=embedding_model)[0]
 
     client = chromadb.HttpClient(host=host, port=port)
     # Name only — the collection already exists; re-passing its hnsw metadata

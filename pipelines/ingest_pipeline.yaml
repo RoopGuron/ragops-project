@@ -1,0 +1,41 @@
+# PIPELINE DEFINITION
+# Name: ingest-pipeline
+# Description: ingestion kubeflow pipeline for ragops
+components:
+  comp-ingest:
+    executorLabel: exec-ingest
+deploymentSpec:
+  executors:
+    exec-ingest:
+      container:
+        command:
+        - /opt/venv/bin/python
+        - -m
+        - ingestion.kfp_entrypoint
+        env:
+        - name: CHROMA_HOST
+          value: chroma.ragops.svc.cluster.local
+        - name: CORPUS_BUCKET
+          value: ragops-corpus-sec-filings-roop
+        - name: CHROMA_PORT
+          value: '8000'
+        image: ghcr.io/roopguron/ragops-ingestion:0.0.2
+        resources:
+          cpuRequest: 2.0
+          memoryRequest: 4.294967296
+          resourceCpuRequest: '2'
+          resourceMemoryRequest: 4Gi
+pipelineInfo:
+  description: ingestion kubeflow pipeline for ragops
+  name: ingest-pipeline
+root:
+  dag:
+    tasks:
+      ingest:
+        cachingOptions: {}
+        componentRef:
+          name: comp-ingest
+        taskInfo:
+          name: ingest
+schemaVersion: 2.1.0
+sdkVersion: kfp-2.17.0

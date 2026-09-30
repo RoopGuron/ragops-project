@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: mlflow
+  namespace: ragops
+spec:
+  clusterIP: None
+  ports:
+    - name: http
+      port: 5000
+      targetPort: 5000
+  selector:
+    app: mlflow

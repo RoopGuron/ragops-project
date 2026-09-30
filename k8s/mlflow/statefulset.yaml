@@ -1,0 +1,80 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: mlflow
+  namespace: ragops
+  labels:
+    app: mlflow
+spec:
+  serviceName: mlflow
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mlflow
+  template:
+    metadata:
+      labels:
+        app: mlflow
+    spec:
+      containers:
+        - name: mlflow-server
+          image: ghcr.io/mlflow/mlflow:v3.16.0
+          imagePullPolicy: IfNotPresent
+          command:
+            - mlflow
+            - server
+            - --host
+            - 0.0.0.0
+            - --port
+            - "5000"
+            - --backend-store-uri
+            - sqlite:////data/mlflow.db
+            - --artifacts-destination
+            - /data/artifacts
+            - --serve-artifacts
+            - --workers
+            - "1"
+            - --allowed-hosts
+            - "*"
+          ports:
+            - containerPort: 5000
+              name: http
+          resources:
+            requests:
+              cpu: "500m"
+              memory: "1Gi"
+            limits:
+              cpu: "1"
+              memory: "2Gi"
+          startupProbe:
+            httpGet:
+              path: /health
+              port: 5000
+            failureThreshold: 30
+            periodSeconds: 5
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 5000
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 5000
+            initialDelaySeconds: 10
+            periodSeconds: 20
+            timeoutSeconds: 5
+          volumeMounts:
+            - name: data
+              mountPath: /data
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes: [ "ReadWriteOnce" ]
+        storageClassName: standard
+        resources:
+          requests:
+            storage: 5Gi

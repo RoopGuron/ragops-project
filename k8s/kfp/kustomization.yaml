@@ -1,0 +1,215 @@
+# Kubeflow Pipelines standalone (dev flavor), pinned to 2.17.0, with three
+# resources removed that GKE Autopilot's Warden admission controller rejects.
+# Use this instead of applying the upstream env/dev base directly:
+#
+#   kubectl apply -k k8s/kfp
+#
+# Bump the `ref=` below (and re-test with --dry-run=server) to move to a
+# newer KFP release.
+
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - github.com/kubeflow/pipelines/manifests/kustomize/env/dev?ref=2.17.0
+
+patches:
+  # 1. RoleBinding to the wildcard group `system:authenticated` — Autopilot
+  #    forbids binding any Role/ClusterRole to this group
+  #    (denied by rbac-binding-limitation). Not needed: this is a single-user
+  #    dev cluster reached via `kubectl port-forward`, so implicit read
+  #    access for "any authenticated principal" buys nothing.
+  - patch: |-
+      $patch: delete
+      apiVersion: rbac.authorization.k8s.io/v1
+      kind: RoleBinding
+      metadata:
+        name: kubeflow-pipelines-public
+        namespace: kubeflow
+
+  # 2. proxy-agent — runs with hostNetwork: true to publish the KFP UI via a
+  #    Google-hosted inverse proxy. Autopilot forbids host namespaces
+  #    (denied by autogke-disallow-hostnamespaces). Not needed: the UI is
+  #    reached via `kubectl port-forward svc/ml-pipeline-ui`.
+  - patch: |-
+      $patch: delete
+      apiVersion: apps/v1
+      kind: Deployment
+      metadata:
+        name: proxy-agent
+        namespace: kubeflow
+
+  # 3. cache-deployer-deployment — self-signs the cache webhook's TLS cert by
+  #    submitting a CertificateSigningRequest with CN=system:node:... and
+  #    O=system:nodes (impersonating a node identity). Autopilot blocks any
+  #    CSR using a `system:` CN or `system:nodes` org outright
+  #    (denied by autogke-csr-limitation) — this is not fixable by retrying,
+  #    it's a hard policy block. Result-caching is not required for the
+  #    pipeline to run; revisit later (e.g. cert-manager-issued cert) if
+  #    caching turns out to matter.
+  - patch: |-
+      $patch: delete
+      apiVersion: apps/v1
+      kind: Deployment
+      metadata:
+        name: cache-deployer-deployment
+        namespace: kubeflow
+
+  # cache-server depends on the secret cache-deployer-deployment was supposed
+  # to create (webhook-server-tls) and never starts without it — remove it
+  # too rather than leave it stuck in ContainerCreating.
+  - patch: |-
+      $patch: delete
+      apiVersion: apps/v1
+      kind: Deployment
+      metadata:
+        name: cache-server
+        namespace: kubeflow
+
+  # The rest of the cache feature's supporting objects (RBAC + Service) are
+  # harmless on their own — nothing rejects them — but with both cache
+  # Deployments gone they just sit unused. Dropping them too so `kubectl get
+  # all -n kubeflow` isn't cluttered with dead objects, and so there's no
+  # confusion about whether caching is half-configured.
+  #
+  # NOTE: kubeflow-pipelines-cache-deployer-sa (the deployer's own
+  # ServiceAccount) is deliberately NOT patched out here. It's live on the
+  # cluster (kubectl get sa -n kubeflow confirms it) but `kubectl kustomize`
+  # against this exact ref only ever shows it as a RoleBinding *subject*,
+  # never as its own ServiceAccount resource — so there's nothing for a
+  # delete patch to match. Cause unresolved; not worth more time chasing
+  # since it's inert (no dangerous permissions, not part of any of the 3
+  # real failures) and leaving it in place breaks nothing.
+  - patch: |-
+      $patch: delete
+      apiVersion: v1
+      kind: ServiceAccount
+      metadata:
+        name: kubeflow-pipelines-cache
+        namespace: kubeflow
+  - patch: |-
+      $patch: delete
+      apiVersion: rbac.authorization.k8s.io/v1
+      kind: Role
+      metadata:
+        name: kubeflow-pipelines-cache-role
+        namespace: kubeflow
+  - patch: |-
+      $patch: delete
+      apiVersion: rbac.authorization.k8s.io/v1
+      kind: Role
+      metadata:
+        name: kubeflow-pipelines-cache-deployer-role
+        namespace: kubeflow
+  - patch: |-
+      $patch: delete
+      apiVersion: rbac.authorization.k8s.io/v1
+      kind: RoleBinding
+      metadata:
+        name: kubeflow-pipelines-cache-binding
+        namespace: kubeflow
+  - patch: |-
+      $patch: delete
+      apiVersion: rbac.authorization.k8s.io/v1
+      kind: RoleBinding
+      metadata:
+        name: kubeflow-pipelines-cache-deployer-rolebinding
+        namespace: kubeflow
+  - patch: |-
+      $patch: delete
+      apiVersion: v1
+      kind: Service
+      metadata:
+        name: cache-server
+        namespace: kubeflow
+  - patch: |-
+      $patch: delete
+      apiVersion: apps/v1
+      kind: Deployment
+      metadata:
+        name: ml-pipeline-visualizationserver
+        namespace: kubeflow
+  - patch: |-
+      $patch: delete
+      apiVersion: apps/v1
+      kind: Deployment
+      metadata:
+        name: ml-pipeline-viewer-crd
+        namespace: kubeflow
+  - patch: |-
+      $patch: delete
+      apiVersion: apps/v1
+      kind: Deployment
+      metadata:
+        name: ml-pipeline-scheduledworkflow
+        namespace: kubeflow
+  - patch: |-
+      $patch: delete
+      apiVersion: apps/v1
+      kind: Deployment
+      metadata:
+        name: metadata-writer
+        namespace: kubeflow
+  - patch: |-
+      apiVersion: apps/v1
+      kind: Deployment
+      metadata:
+        name: metadata-envoy-deployment
+        namespace: kubeflow
+      spec:
+        template:
+          spec:
+            containers:
+              - name: container
+                resources:
+                  requests:
+                    cpu: 250m
+                    memory: 512Mi
+                  limits:
+                    cpu: 250m
+                    memory: 512Mi
+  - patch: |-
+      apiVersion: apps/v1
+      kind: Deployment
+      metadata:
+        name: metadata-grpc-deployment
+        namespace: kubeflow
+      spec:
+        template:
+          spec:
+            containers:
+              - name: container
+                resources:
+                  requests:
+                    cpu: 250m
+                    memory: 512Mi
+                  limits:
+                    cpu: 250m
+                    memory: 512Mi
+  - patch: |-
+      apiVersion: apps/v1
+      kind: Deployment
+      metadata:
+        name: ml-pipeline
+        namespace: kubeflow
+      spec:
+        template:
+          spec:
+            containers:
+              - name: ml-pipeline-api-server
+                env:
+                  - name: V2_DRIVER_IMAGE
+                    value: ghcr.io/kubeflow/kfp-driver:2.17.0
+                  - name: V2_LAUNCHER_IMAGE
+                    value: ghcr.io/kubeflow/kfp-launcher:2.17.0
+
+images:
+  - name: ghcr.io/kubeflow/kfp-api-server
+    newTag: 2.17.0
+  - name: ghcr.io/kubeflow/kfp-frontend
+    newTag: 2.17.0
+  - name: ghcr.io/kubeflow/kfp-persistence-agent
+    newTag: 2.17.0
+  - name: ghcr.io/kubeflow/kfp-metadata-envoy
+    newTag: 2.17.0
+

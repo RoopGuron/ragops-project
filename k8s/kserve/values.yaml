@@ -1,0 +1,8 @@
+kserve:
+  certManager:
+    enabled: true
+  controller:
+    deploymentMode: Standard
+    gateway:
+      disableIngressCreation: true
+      disableIstioVirtualHost: true

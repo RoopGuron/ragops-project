@@ -24,7 +24,7 @@ USER ragops
 # 6. Copy source files with correct ownership permissions
 COPY --chown=ragops:ragops rag/ ./rag/
 COPY --chown=ragops:ragops ingestion/ ./ingestion/
-COPY --chown=ragops:ragops requirements/ ./requirements/
+COPY --chown=ragops:ragops requirements/serve.txt ./requirements/serve.txt
 
 # 7. Install python packages inside the custom venv location
 RUN /opt/venv/bin/pip install --no-cache-dir --upgrade pip && \

@@ -24,3 +24,9 @@ resource "google_storage_bucket_iam_member" "corpus_bucket_role" {
 output "bucket_name" {
   value = google_storage_bucket.corpus.name
 }
+
+resource "google_project_iam_member" "monitoring_viewer_grafana" {
+  project = var.project_id
+  role    = "roles/monitoring.viewer"
+  member  = "principal://iam.googleapis.com/projects/${data.google_project.this.number}/locations/global/workloadIdentityPools/${data.google_project.this.project_id}.svc.id.goog/subject/ns/monitoring/sa/default"
+}

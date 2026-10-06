@@ -118,4 +118,4 @@ jobs:
     - name: Install KFP SDK and submit run
       run: |
         pip install -r requirements/kfp.txt
-        python pipelines/trigger_run.py --host http://localhost:8888
+        python -m pipelines.trigger_run --host http://localhost:8888

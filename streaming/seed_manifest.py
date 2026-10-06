@@ -1,8 +1,10 @@
 # streaming/seed_manifest.py
 # (kafka-client-venv) ➜  ragops-project > python3 streaming/seed_manifest.py
 # -------------------
-from pathlib import Path
+
+
 import json
+from pathlib import Path
 
 CORPUS_DIR = Path("corpus/clean")
 MANIFEST_PATH = Path("streaming/.manifest.json")

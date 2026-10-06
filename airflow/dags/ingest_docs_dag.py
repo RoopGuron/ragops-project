@@ -19,9 +19,8 @@ of importing torch/chromadb just to register this DAG.
 
 import os
 import pickle
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
-from datetime import timedelta
 
 from airflow.decorators import dag, task
 
@@ -39,7 +38,7 @@ COLLECTION_NAME = "sec_10k"
     dag_id="ingest_docs",
     description="load -> chunk -> embed_and_upsert the SEC 10-K corpus into Chroma",
     schedule=None,
-    start_date=datetime(2026, 1, 1),
+    start_date=datetime(2026, 1, 1, tzinfo=datetime.timezone.utc),
     catchup=False,
     tags=["ragops", "ingestion"],
 )
@@ -48,7 +47,7 @@ def ingest_docs():
     @task()
     def load(**context) -> str:
         os.chdir(PROJECT_ROOT)
-        from ingestion.loader import load_documents, DEFAULT_MANIFEST
+        from ingestion.loader import DEFAULT_MANIFEST, load_documents
 
         docs = load_documents(DEFAULT_MANIFEST)
 
@@ -71,7 +70,11 @@ def ingest_docs():
         import chromadb
 
         sys.path.insert(0, "/opt/airflow/project")
-        from ingestion.chunker import chunk_document, DEFAULT_CHUNK_SIZE, DEFAULT_CHUNK_OVERLAP
+        from ingestion.chunker import (
+            DEFAULT_CHUNK_OVERLAP,
+            DEFAULT_CHUNK_SIZE,
+            chunk_document,
+        )
 
         # external_python runs in a fresh /opt/ml-venv interpreter — no access to
         # this module's globals, so the Chroma connection details are re-stated here.
@@ -121,7 +124,7 @@ def ingest_docs():
         for doc in docs:
             doc_id = getattr(doc, "doc_id", None)
             doc_text = getattr(doc, "text", "")
-            doc_source = getattr(doc, "source", "unknown")
+            # doc_source = getattr(doc, "source", "unknown")
 
             current_hash = hashlib.md5(doc_text.encode("utf-8")).hexdigest()
 
@@ -160,7 +163,7 @@ def ingest_docs():
         from pathlib import Path
 
         sys.path.insert(0, "/opt/airflow/project")
-        from ingestion.embedder import embed_texts, DEFAULT_MODEL
+        from ingestion.embedder import DEFAULT_MODEL, embed_texts
 
         with open(chunks_path, "rb") as f:
             chunks = pickle.load(f)
@@ -221,6 +224,7 @@ def ingest_docs():
     chunks_path = chunk(docs_path)
     embeddings_path = embed(chunks_path)
     collection_info = upsert(chunks_path, embeddings_path)
+    print(f"Upsert completed: {collection_info}")
 
 
 ingest_docs()

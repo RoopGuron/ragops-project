@@ -30,3 +30,41 @@ resource "google_project_iam_member" "monitoring_viewer_grafana" {
   role    = "roles/monitoring.viewer"
   member  = "principal://iam.googleapis.com/projects/${data.google_project.this.number}/locations/global/workloadIdentityPools/${data.google_project.this.project_id}.svc.id.goog/subject/ns/monitoring/sa/default"
 }
+
+resource "google_iam_workload_identity_pool" "github_pool" {
+  project                   = var.project_id
+  workload_identity_pool_id = "github-actions-pool"
+  display_name              = "GitHub Actions Pool"
+}
+
+resource "google_iam_workload_identity_pool_provider" "github_provider" {
+  project                            = var.project_id
+  workload_identity_pool_id          = google_iam_workload_identity_pool.github_pool.workload_identity_pool_id
+  workload_identity_pool_provider_id = "github-provider"
+  attribute_mapping = {
+    "google.subject"       = "assertion.sub"
+    "attribute.repository" = "assertion.repository"
+  }
+  attribute_condition = "assertion.repository == \"RoopGuron/ragops-project\""
+  oidc {
+    issuer_uri = "https://token.actions.githubusercontent.com"
+  }
+}
+
+resource "google_service_account" "github_ci" {
+  project      = var.project_id
+  account_id   = "github-ci"
+  display_name = "GitHub Actions CI"
+}
+
+resource "google_project_iam_member" "github_ci_gke" {
+  project = var.project_id
+  role    = "roles/container.developer"
+  member  = "serviceAccount:${google_service_account.github_ci.email}"
+}
+
+resource "google_service_account_iam_member" "github_wif_binding" {
+  service_account_id = google_service_account.github_ci.name
+  role                = "roles/iam.workloadIdentityUser"
+  member              = "principalSet://iam.googleapis.com/${google_iam_workload_identity_pool.github_pool.name}/attribute.repository/RoopGuron/ragops-project"
+}

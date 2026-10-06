@@ -10,10 +10,12 @@ against localhost:8000 locally and chromadb:8000 inside the Airflow docker
 network (same pattern as airflow/dags/ingest_docs_dag.py).
 """
 
+
+import json
 import os
 from dataclasses import dataclass
-import json
 from pathlib import Path
+
 from ingestion.embedder import DEFAULT_MODEL as DEFAULT_EMBEDDING_MODEL
 
 # DEFAULT_LLM_MODEL = "claude-opus-5"

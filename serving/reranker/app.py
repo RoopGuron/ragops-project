@@ -10,11 +10,14 @@ Takes {"query": str, "passages": [str, ...]} and returns
 order as the input.
 """
 
-import kserve
+
 import os
+
+import kserve
 import torch
 from kserve.errors import InvalidInput
 from sentence_transformers import CrossEncoder
+
 
 class Reranker(kserve.Model):
     def __init__(self, name: str):
@@ -31,7 +34,7 @@ class Reranker(kserve.Model):
         self.model = CrossEncoder(checkpoint)
         self.ready = True
 
-    def predict(self, payload: dict, headers: dict = None) -> dict:
+    def predict(self, payload: dict, headers: dict | None = None) -> dict:
         if payload is None or "query" not in payload \
                     or "passages" not in payload \
                     or not isinstance(payload["query"],str) \

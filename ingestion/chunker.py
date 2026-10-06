@@ -10,9 +10,10 @@ hard character cut only for a single run-on paragraph with no good break
 point. Overlap keeps context from being severed exactly at a chunk boundary.
 """
 
+
+import hashlib
 import re
 from dataclasses import dataclass
-import hashlib
 
 DEFAULT_CHUNK_SIZE = 1000   # characters, not tokens — good enough for a first pass;
 DEFAULT_CHUNK_OVERLAP = 150  # revisit as token-based if eval scores call for it later

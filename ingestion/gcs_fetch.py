@@ -9,8 +9,11 @@ resume notes); storage.Client() here relies on Application Default
 Credentials being available wherever this runs.
 """
 
+
 from pathlib import Path
+
 from google.cloud import storage
+
 
 def download_corpus(bucket_name: str, prefix: str, local_destination: str) -> int:
     """Download every blob under `prefix` in `bucket_name` into

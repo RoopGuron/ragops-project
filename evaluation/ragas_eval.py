@@ -27,22 +27,25 @@ _ProjectEmbeddings wrapper. Re-verify both on any ragas bump.
 """
 
 
-import os
-import anthropic
+# 1. Standard library imports
 import argparse
 import json
+import os
 from pathlib import Path
 
+# 2. Third-party cloud/ML clients (anthropic, mlflow)
+import anthropic
 import mlflow
 
-from rag.config import RagConfig
+# 3. Third-party evaluation framework (ragas)
 from ragas import EvaluationDataset, evaluate
 from ragas.embeddings import BaseRagasEmbeddings
 from ragas.llms import llm_factory
-from ragas.metrics import Faithfulness, ResponseRelevancy, ContextPrecision
+from ragas.metrics import ContextPrecision, Faithfulness, ResponseRelevancy
 
+# 4. Local application imports
 from ingestion.embedder import embed_texts
-
+from rag.config import RagConfig
 
 _DEFAULTS = RagConfig()
 

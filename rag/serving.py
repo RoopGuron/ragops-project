@@ -1,6 +1,8 @@
 # rag/serving.py
 import json
+
 import mlflow
+
 
 class RagPipeline(mlflow.pyfunc.PythonModel):
     def load_context(self, context):

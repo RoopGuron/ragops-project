@@ -1,17 +1,16 @@
 # streaming/consumer.py
 import os
-import uuid
-from datetime import datetime, timezone
-import requests
-from requests.auth import HTTPBasicAuth
 import time
+import uuid
 from collections import defaultdict
-from confluent_kafka import Consumer, KafkaError, KafkaException, TopicPartition
+from datetime import datetime, timezone
 
+import requests
+from confluent_kafka import Consumer, KafkaError, KafkaException, TopicPartition
 from dotenv import load_dotenv
+from requests.auth import HTTPBasicAuth
 
 load_dotenv()
-
 
 TOPIC = "corpus-doc-events"
 MAX_RETRIES = 3
@@ -27,7 +26,7 @@ conf = {
 
     # If NOT using the environment variable, explicitly point to the CA here:
     'ssl.ca.location': os.environ["KAFKA_SASL_CA_LOCATION"],
-    'group.id': f"standalone-consumer-group",
+    'group.id': "standalone-consumer-group",
     'enable.auto.commit': False,
     'auto.offset.reset': 'earliest'
 }
@@ -97,6 +96,7 @@ def run(consumer: Consumer):
                     else:
                         time.sleep(RETRY_BACKOFF_SECONDS * attempt)
                         consumer.seek(TopicPartition(msg.topic(), msg.partition(), msg.offset()))
+                    raise
     except KeyboardInterrupt:
         print("Aborted by user.")
     finally:

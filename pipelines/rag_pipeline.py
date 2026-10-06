@@ -11,7 +11,7 @@ from pipelines.components.ragas_eval import ragas_eval
 def rag_pipeline():
     ingest_task = ingest()
     ingest_task.set_caching_options(False)
-    ingest_task.set_cpu_request("2")
+    ingest_task.set_cpu_request("1")
     ingest_task.set_memory_request("4Gi")
     ingest_task.set_env_variable("CHROMA_HOST", "chroma.ragops.svc.cluster.local")
     ingest_task.set_env_variable("CORPUS_BUCKET", "ragops-corpus-sec-filings-roop")

@@ -2,11 +2,11 @@ import json
 from dataclasses import asdict
 from pathlib import Path
 
-from rag.config import RagConfig
-from rag.serving import RagPipeline
-
 import mlflow
 from mlflow import MlflowClient
+
+from rag.config import RagConfig
+from rag.serving import RagPipeline
 
 WINNER_RUN_ID = "86e93f8be6c84159b0ba34d97d33cb29"
 MODEL_NAME = "rag-query-path"

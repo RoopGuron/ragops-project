@@ -1,15 +1,16 @@
 import asyncio
-import os
-import json
-from pathlib import Path
-from fastapi import FastAPI, Request, Response, status
+import logging
+from contextlib import asynccontextmanager
+
+from fastapi import FastAPI, Request, status
 from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
-from rag.config import load_config
-from contextlib import asynccontextmanager
 
 from rag.answer import answer_question
+from rag.config import load_config
+
+logger = logging.getLogger(__name__)
 
 
 # 1. Define your lifespan context manager
@@ -59,7 +60,7 @@ async def post_query(query_payload: QueryPayload,
             config=request.app.state.rag_config
         )
     except Exception as e:
-        print(f"Error occurred while answering question: {e}")
+        logger.exception("Error occurred while answering question")
         return JSONResponse(
             status_code=status.HTTP_502_BAD_GATEWAY,
             content={
@@ -68,6 +69,7 @@ async def post_query(query_payload: QueryPayload,
                 "details": str(e)
             }
         )
+
 
     print(ans.text.strip() or "(empty answer)")
     print("-" * 72)

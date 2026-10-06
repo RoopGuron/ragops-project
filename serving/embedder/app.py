@@ -8,11 +8,14 @@ Ingestion still embeds documents in-process; only queries go through here.
 """
 
 
-import kserve
 import os
+
+import kserve
 import torch
 from kserve.errors import InvalidInput
+
 from ingestion.embedder import embed_texts
+
 
 class Embedder(kserve.Model):
     def __init__(self, name: str):
@@ -27,7 +30,7 @@ class Embedder(kserve.Model):
         embed_texts(["warmup"])
         self.ready = True
 
-    def predict(self, payload: dict, headers: dict = None) -> dict:
+    def predict(self, payload: dict, headers: dict | None = None) -> dict:
         if payload is None or "instances" not in payload \
             or not isinstance(payload["instances"],list) \
             or not all(isinstance(t, str) for t in payload["instances"]):

@@ -22,7 +22,7 @@ import re
 from dataclasses import dataclass
 
 import chromadb
-import httpx   # already in the dependency tree via chromadb — no new package needed
+import httpx  # already in the dependency tree via chromadb — no new package needed
 
 from ingestion.embedder import DEFAULT_MODEL, embed_texts
 from rag.config import DEFAULT_COLLECTION

@@ -8,15 +8,22 @@ it's scheduled and retried. Testing this end-to-end today only requires
 scheduler.
 """
 
+
 import argparse
+import hashlib
 from pathlib import Path
 
-from ingestion.loader import load_documents, DEFAULT_MANIFEST
-from ingestion.chunker import chunk_document, DEFAULT_CHUNK_SIZE, DEFAULT_CHUNK_OVERLAP
-from ingestion.embedder import embed_texts, DEFAULT_MODEL
-from ingestion.vectorstore import upsert_chunks, DEFAULT_HOST, DEFAULT_PORT, DEFAULT_COLLECTION
-import hashlib
 import chromadb
+
+from ingestion.chunker import DEFAULT_CHUNK_OVERLAP, DEFAULT_CHUNK_SIZE, chunk_document
+from ingestion.embedder import DEFAULT_MODEL, embed_texts
+from ingestion.loader import DEFAULT_MANIFEST, load_documents
+from ingestion.vectorstore import (
+    DEFAULT_COLLECTION,
+    DEFAULT_HOST,
+    DEFAULT_PORT,
+    upsert_chunks,
+)
 
 
 def run_ingestion(

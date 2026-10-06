@@ -18,19 +18,22 @@ metrics attach to this run. No ragas import here — this only produces the
 data the judge consumes.
 """
 
+
+# 1. Standard library imports (Alphabetical by module name, straight imports first, then 'from' imports)
 import argparse
 import json
 import time
 import traceback
-from pathlib import Path
-from dataclasses import asdict
-
-import mlflow
 from contextlib import contextmanager
+from dataclasses import asdict
+from pathlib import Path
 
-from rag.answer import answer_question, Answer
+# 2. Third-party imports
+import mlflow
+
+# 3. Local application imports
+from rag.answer import Answer, answer_question
 from rag.config import RagConfig
-
 
 _DEFAULTS = RagConfig()
 
@@ -51,7 +54,7 @@ def _tracked_run(config: RagConfig):
         except Exception as e:
             mlflow.set_tag("error_message", str(e))
             mlflow.log_text(traceback.format_exc(), "error_traceback.txt")
-            raise e
+            raise
             
         finally:
             # This block ALWAYS runs, even if an exception was raised above

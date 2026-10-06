@@ -9,6 +9,7 @@ Kafka-triggered re-ingestion (week 2) both depend on.
 """
 
 import os
+
 import chromadb
 
 DEFAULT_HOST = os.getenv("CHROMA_HOST", "localhost")

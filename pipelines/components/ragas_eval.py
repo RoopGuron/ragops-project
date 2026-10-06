@@ -1,4 +1,7 @@
+import os
+
 from kfp import dsl
+
 
 @dsl.container_component
 def ragas_eval():
@@ -11,6 +14,6 @@ def ragas_eval():
     """
 
     return dsl.ContainerSpec(
-        image="ghcr.io/roopguron/ragops-evaluation:0.0.1",
+        image=os.environ.get("EVAL_IMAGE", "ghcr.io/roopguron/ragops-evaluation:0.0.1"),
         command=["/opt/venv/bin/python", "-m", "evaluation.kfp_entrypoint"],
     )

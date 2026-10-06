@@ -33,12 +33,13 @@ Run:
     python pull_10k_corpus.py
 """
 
+
+import argparse
 import json
 import re
 import time
-from pathlib import Path
 import unicodedata
-import argparse
+from pathlib import Path
 
 from sec_edgar_downloader import Downloader
 
@@ -146,6 +147,7 @@ def download_filings():
             # A handful of tickers will fail (delisted, renamed, no filings
             # in range) — log and move on rather than aborting the run.
             print(f"{ticker}: FAILED — {e}")
+            raise
 
         # sec-edgar-downloader already paces requests, but stay well under
         # the SEC's 10 req/sec ceiling if you add any custom calls here.

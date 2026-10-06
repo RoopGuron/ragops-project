@@ -6,7 +6,9 @@ chunks pass through unchanged in their original retrieval order.
 """
 
 import httpx
+
 from rag.retriever import RetrievedChunk
+
 
 def rerank(question: str, chunks: list[RetrievedChunk], endpoint: str) -> list[RetrievedChunk]:
     if not endpoint or not chunks:

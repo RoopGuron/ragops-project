@@ -1,6 +1,8 @@
-from kfp import compiler,dsl,kubernetes
+from kfp import compiler, dsl, kubernetes
+
 from pipelines.components.ingest import ingest
 from pipelines.components.ragas_eval import ragas_eval
+
 
 @dsl.pipeline(
     name="rag-pipeline",

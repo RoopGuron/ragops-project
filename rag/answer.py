@@ -10,14 +10,16 @@ The raw retrieved chunks ride through untouched on Answer.contexts — Week 2's
 Ragas run needs them as `contexts` alongside the question and answer.
 """
 
+
 import re
 from dataclasses import dataclass, field
 
 from rag.config import RagConfig
 from rag.generator import generate
 from rag.prompt import build_prompt
-from rag.retriever import RetrievedChunk, cap_per_doc, retrieve
 from rag.reranker import rerank
+from rag.retriever import RetrievedChunk, cap_per_doc, retrieve
+
 
 @dataclass
 class Citation:

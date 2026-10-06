@@ -1,0 +1,14 @@
+apiVersion: monitoring.googleapis.com/v1
+kind: PodMonitoring
+metadata:
+  name: kserve-metrics
+  namespace: ragops
+spec:
+  selector:
+    matchExpressions:
+      - key: serving.kserve.io/inferenceservice
+        operator: Exists
+  endpoints:
+    - port: 8080
+      path: /metrics
+      interval: 30s

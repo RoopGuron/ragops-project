@@ -5,6 +5,7 @@ import kfp
 
 from pipelines.rag_pipeline import rag_pipeline
 
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--host", required=True)

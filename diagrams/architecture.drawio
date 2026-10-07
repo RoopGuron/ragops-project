@@ -1,0 +1,159 @@
+<mxfile host="app.diagrams.net" pages="2">
+  <diagram name="CI/CD" id="ragops-cicd">
+    <mxGraphModel dx="2054" dy="1031" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1850" pageHeight="600" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="n2_laptop" parent="1" vertex="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=12;align=center;verticalAlign=middle;" value="Laptop / Browser&#xa;(git push main)">
+          <mxGeometry x="40" y="140" width="200" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="n2_lint" parent="1" vertex="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;fontSize=12;align=center;verticalAlign=middle;" value="GitHub Actions:&#xa;lint-test">
+          <mxGeometry x="320" y="140" width="200" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="n2_build" parent="1" vertex="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;fontSize=12;align=center;verticalAlign=middle;" value="GitHub Actions:&#xa;build-and-push&#xa;(5-image matrix, SHA tag)">
+          <mxGeometry x="600" y="140" width="240" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="n2_ghcr" parent="1" vertex="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=12;align=center;verticalAlign=middle;" value="GHCR&#xa;ghcr.io/roopguron/*">
+          <mxGeometry x="920" y="140" width="180" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="n2_trigger" parent="1" vertex="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;fontSize=12;align=center;verticalAlign=middle;" value="GitHub Actions:&#xa;trigger-pipeline&#xa;(WIF auth, GKE creds)">
+          <mxGeometry x="1180" y="140" width="240" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="n2_kfp" parent="1" vertex="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=12;align=center;verticalAlign=middle;" value="KFP Control Plane&#xa;(kubeflow ns)">
+          <mxGeometry x="1500" y="140" width="220" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="n2_kfp_pods" parent="1" vertex="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=11;align=center;verticalAlign=middle;" value="KFP pipeline pods&#xa;(ingest, ragas_eval)">
+          <mxGeometry x="820" y="340" width="240" height="70" as="geometry" />
+        </mxCell>
+        <mxCell id="n2_kserve_pods" parent="1" vertex="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;fontSize=11;align=center;verticalAlign=middle;" value="KServe predictors&#xa;(embedder, reranker, reranker-b)">
+          <mxGeometry x="1100" y="340" width="260" height="70" as="geometry" />
+        </mxCell>
+        <mxCell id="f1" edge="1" parent="1" source="n2_laptop" target="n2_lint" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#999999;fontColor=#999999;fontSize=10;endArrow=block;exitX=1;exitY=0.5;entryX=0;entryY=0.5;" value="git push main">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="f2" edge="1" parent="1" source="n2_lint" target="n2_build" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#999999;fontColor=#999999;fontSize=10;endArrow=block;exitX=1;exitY=0.5;entryX=0;entryY=0.5;" value="pass">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="f3" edge="1" parent="1" source="n2_build" target="n2_ghcr" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#999999;fontColor=#999999;fontSize=10;endArrow=block;exitX=1;exitY=0.5;entryX=0;entryY=0.5;" value="push (SHA tag)">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="f4" edge="1" parent="1" source="n2_ghcr" target="n2_trigger" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#999999;fontColor=#999999;fontSize=10;endArrow=block;exitX=1;exitY=0.5;entryX=0;entryY=0.5;" value="needs: build-and-push">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="f5" edge="1" parent="1" source="n2_trigger" target="n2_kfp" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#999999;fontColor=#999999;fontSize=10;endArrow=block;exitX=1;exitY=0.5;entryX=0;entryY=0.5;" value="create_run_from_pipeline_func">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="f6" edge="1" parent="1" source="n2_ghcr" target="n2_kfp_pods" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#999999;fontColor=#999999;fontSize=10;dashed=1;endArrow=block;exitX=0.3;exitY=1;entryX=0.5;entryY=0;" value="image pull&#xa;(INGEST_IMAGE / EVAL_IMAGE)">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="f7" edge="1" parent="1" source="n2_ghcr" target="n2_kserve_pods" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#999999;fontColor=#999999;fontSize=10;dashed=1;endArrow=block;exitX=0.7;exitY=1;entryX=0.5;entryY=0;" value="image pull&#xa;(on redeploy)">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+  <diagram name="Runtime &amp; Observability" id="ragops-runtime">
+    <mxGraphModel dx="2270" dy="1063" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="2200" pageHeight="1150" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="n_gcs" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=12;align=center;verticalAlign=middle;" value="GCS Corpus Bucket&#xa;corpus/clean/" vertex="1">
+          <mxGeometry height="70" width="220" x="40" y="140" as="geometry" />
+        </mxCell>
+        <mxCell id="n_laptop" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=12;align=center;verticalAlign=middle;" value="Laptop / Browser&#xa;&#xa;RAG query client (query.py / answer.py)" vertex="1">
+          <mxGeometry height="100" width="220" x="40" y="240" as="geometry" />
+        </mxCell>
+        <mxCell id="n_anthropic" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=12;align=center;verticalAlign=middle;" value="Anthropic API&#xa;&#xa;LLM generation +&#xa;RAGAS judge" vertex="1">
+          <mxGeometry height="100" width="200" x="1900" y="140" as="geometry" />
+        </mxCell>
+        <mxCell id="n_cluster" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=none;strokeColor=#666666;dashed=1;verticalAlign=top;align=left;fontSize=14;fontStyle=1;spacingLeft=10;spacingTop=6;" value="GKE Standard Cluster (us-west1-a)" vertex="1">
+          <mxGeometry height="820" width="1500" x="340" y="130" as="geometry" />
+        </mxCell>
+        <mxCell id="n_ns_kubeflow" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;verticalAlign=top;align=left;fontSize=12;fontStyle=1;spacingLeft=8;spacingTop=6;" value="namespace: kubeflow" vertex="1">
+          <mxGeometry height="330" width="420" x="360" y="230" as="geometry" />
+        </mxCell>
+        <mxCell id="n_ingest" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=11;" value="ingest&#xa;(container component)" vertex="1">
+          <mxGeometry height="60" width="170" x="380" y="270" as="geometry" />
+        </mxCell>
+        <mxCell id="n_ragas" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=11;" value="ragas_eval&#xa;(container component)" vertex="1">
+          <mxGeometry height="60" width="170" x="590" y="270" as="geometry" />
+        </mxCell>
+        <mxCell id="n_kfp_api" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=11;" value="KFP Control Plane&#xa;(ml-pipeline API server, 2.17.0)" vertex="1">
+          <mxGeometry height="55" width="380" x="380" y="350" as="geometry" />
+        </mxCell>
+        <mxCell id="n_ns_kserve" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;verticalAlign=top;align=left;fontSize=12;fontStyle=1;spacingLeft=8;spacingTop=6;" value="namespace: kserve + cert-manager" vertex="1">
+          <mxGeometry height="330" width="480" x="810" y="230" as="geometry" />
+        </mxCell>
+        <mxCell id="n_embedder" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;fontSize=11;" value="Embedder&#xa;(InferenceService)" vertex="1">
+          <mxGeometry height="60" width="180" x="830" y="270" as="geometry" />
+        </mxCell>
+        <mxCell id="n_splitter" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;fontSize=11;" value="InferenceGraph splitter&#xa;(reranking-router, 70/30)" vertex="1">
+          <mxGeometry height="55" width="210" x="1040" y="270" as="geometry" />
+        </mxCell>
+        <mxCell id="n_reranker" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;fontSize=11;" value="reranker&#xa;(ms-marco-MiniLM-L6)" vertex="1">
+          <mxGeometry height="55" width="200" x="1040" y="345" as="geometry" />
+        </mxCell>
+        <mxCell id="n_rerankerb" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;fontSize=11;" value="reranker-b&#xa;(ms-marco-MiniLM-L12)" vertex="1">
+          <mxGeometry height="55" width="200" x="1040" y="415" as="geometry" />
+        </mxCell>
+        <mxCell id="n_ns_ragops" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;verticalAlign=top;align=left;fontSize=12;fontStyle=1;spacingLeft=8;spacingTop=6;" value="namespace: ragops" vertex="1">
+          <mxGeometry height="330" width="480" x="1320" y="230" as="geometry" />
+        </mxCell>
+        <mxCell id="n_chroma" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=11;" value="ChromaDB&#xa;(StatefulSet, HDD storage)" vertex="1">
+          <mxGeometry height="55" width="200" x="1340" y="270" as="geometry" />
+        </mxCell>
+        <mxCell id="n_mlflow" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=11;" value="MLflow&#xa;(StatefulSet, sqlite, HDD)" vertex="1">
+          <mxGeometry height="55" width="200" x="1560" y="270" as="geometry" />
+        </mxCell>
+        <mxCell id="n_grafana" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=11;" value="Grafana&#xa;(Google Cloud Monitoring datasource)" vertex="1">
+          <mxGeometry height="55" width="420" x="1340" y="345" as="geometry" />
+        </mxCell>
+        <mxCell id="n_gmp" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=11;" value="GKE Managed Prometheus (GMP)&#xa;scrapes via PodMonitoring" vertex="1">
+          <mxGeometry height="70" width="320" x="1145" y="1000" as="geometry" />
+        </mxCell>
+        <mxCell id="n_legend" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#cccccc;align=left;verticalAlign=top;fontSize=11;spacing=8;" value="Legend&#xa;— Blue: ingest / eval pipeline&#xa;— Green: query path&#xa;— Red dashed: observability&#xa;(CI/CD flow: see &quot;CI/CD&quot; page)" vertex="1">
+          <mxGeometry height="100" width="320" x="40" y="1000" as="geometry" />
+        </mxCell>
+        <mxCell id="e1" edge="1" parent="1" source="n_gcs" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#6c8ebf;fontColor=#6c8ebf;fontSize=10;endArrow=block;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" target="n_ingest" value="gcs_fetch.py&#xa;(Workload Identity)">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e2" edge="1" parent="1" source="n_ingest" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#6c8ebf;fontColor=#6c8ebf;fontSize=10;endArrow=block;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" target="n_ragas" value=".after()">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e3" edge="1" parent="1" source="n_ingest" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#6c8ebf;fontColor=#6c8ebf;fontSize=10;endArrow=block;exitX=0.5;exitY=0;exitDx=0;exitDy=0;entryX=0.3;entryY=0;entryDx=0;entryDy=0;" target="n_chroma" value="chunk + embed + upsert">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e4" edge="1" parent="1" source="n_ragas" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#6c8ebf;fontColor=#6c8ebf;fontSize=10;endArrow=block;exitX=0.3;exitY=0;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" target="n_mlflow" value="log recall / faithfulness / ...">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e5" edge="1" parent="1" source="n_ragas" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#6c8ebf;fontColor=#6c8ebf;fontSize=10;endArrow=block;exitX=0.7;exitY=0;exitDx=0;exitDy=0;entryX=0;entryY=0.3;entryDx=0;entryDy=0;" target="n_anthropic" value="generate + RAGAS judge">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e6" edge="1" parent="1" source="n_laptop" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#82b366;fontColor=#82b366;fontSize=10;endArrow=block;exitX=1;exitY=0.2;exitDx=0;exitDy=0;entryX=0.7;entryY=0;entryDx=0;entryDy=0;" target="n_chroma" value="retrieve top-k">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e7" edge="1" parent="1" source="n_laptop" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#82b366;fontColor=#82b366;fontSize=10;endArrow=block;exitX=1;exitY=0.4;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" target="n_embedder" value="query embedding&#xa;(EMBEDDING_ENDPOINT)">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e8" edge="1" parent="1" source="n_laptop" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#82b366;fontColor=#82b366;fontSize=10;endArrow=block;exitX=1;exitY=0.6;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" target="n_splitter" value="rerank&#xa;(RERANKER_ENDPOINT)">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e9" edge="1" parent="1" source="n_splitter" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#82b366;fontColor=#82b366;fontSize=10;endArrow=block;exitX=0.35;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" target="n_reranker" value="70%">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e10" edge="1" parent="1" source="n_splitter" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#82b366;fontColor=#82b366;fontSize=10;endArrow=block;exitX=0.65;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" target="n_rerankerb" value="30%">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e11" edge="1" parent="1" source="n_laptop" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#82b366;fontColor=#82b366;fontSize=10;endArrow=block;exitX=1;exitY=0.8;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" target="n_anthropic" value="generate cited answer">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e16" edge="1" parent="1" source="n_ns_kserve" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#b85450;fontColor=#b85450;fontSize=10;dashed=1;endArrow=block;exitX=0.7;exitY=1;exitDx=0;exitDy=0;entryX=0.2;entryY=0;entryDx=0;entryDy=0;" target="n_gmp" value="PodMonitoring scrape&#xa;/metrics :8080">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e17" edge="1" parent="1" source="n_gmp" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#b85450;fontColor=#b85450;fontSize=10;dashed=1;endArrow=block;exitX=0.8;exitY=0;exitDx=0;exitDy=0;entryX=0.5;entryY=1;entryDx=0;entryDy=0;" target="n_grafana" value="roles/monitoring.viewer&#xa;(Workload Identity)">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

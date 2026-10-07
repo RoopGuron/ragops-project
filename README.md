@@ -1,211 +1,219 @@
 # RAGOps
 
-RAG pipeline over a corpus of SEC 10-K filings, built as an MLOps-flavored
-project: ingestion, retrieval, cloud pipeline orchestration, and model
-serving with live metrics. See `project-plan/` for the full week-by-week
-plan.
+A retrieval-augmented Q&A platform over a corpus of SEC 10-K filings —
+ask a question about a company's filings, get back an answer cited by
+ticker / fiscal year / filing item, not just a plausible-sounding guess.
 
-## What's built so far (Week 1, Days 1–3)
+The point of this project isn't the Q&A app itself — it's everything
+around it: a pipeline that's used to systematically tune retrieval quality
+instead of guessing at it, a real two-model canary rollout for the
+reranker with live metrics instead of a simulated one, and CI/CD that
+builds, tests, and runs the pipeline automatically on every push. The
+source diagram is `diagrams/architecture.drawio` (open in
+[diagrams.net](https://app.diagrams.net) — page 1 is runtime/observability,
+page 2 is CI/CD); exported views are embedded below.
 
-**Ingestion** (`ingestion/`) — `loader.py` → `chunker.py` → `embedder.py` →
-`vectorstore.py`, orchestrated by `pipeline.py`. Wrapped as a 3-task Airflow
-DAG (`airflow/dags/ingest_docs_dag.py`, via `docker-compose.yaml`) with
-incremental logic: doc_ids already embedded in Chroma are skipped unless the
-source changed.
+## Architecture at a glance
 
-**RAG query path** (`rag/`) — `retriever.py` pulls top-k chunks from Chroma,
-`prompt.py` builds the prompt, `generator.py` calls the LLM, `answer.py`
-returns a response cited by ticker / fiscal year / item using metadata
-stored per chunk at ingestion time. `query.py` is the entry point. The
-retriever and the answer orchestrator can call out to in-cluster model
-services instead of running locally (`EMBEDDING_ENDPOINT`,
-`RERANKER_ENDPOINT` — see the Week 3 section below), falling back to the
-local model when unset.
+![RAGOps runtime and observability architecture — external actors (laptop, GitHub Actions, Anthropic API, GCS bucket), the GKE cluster with its kubeflow, kserve, and ragops namespaces, and the ingest/eval, query, and observability data flows between them](diagrams/runtime-observability.png)
+<!-- Export: open diagrams/architecture.drawio, page 1 "Runtime & Observability",
+     File > Export as > PNG, save to diagrams/runtime-observability.png -->
+
+Four pieces, tied together by CI/CD:
+
+1. **Ingestion & evaluation pipeline** (Kubeflow Pipelines) — chunks and
+   embeds the corpus into Chroma, then runs an offline RAGAS evaluation
+   against it. This is the harness that was used to find the retrieval
+   config actually in use today, and it reruns on every CI push so that
+   number stays verified rather than tuned once and forgotten.
+2. **Query/answer flow** — retrieve → rerank → generate, with every answer
+   traceable back to the chunks it came from.
+3. **Model serving & observability** — the embedding model and reranker
+   run as their own services (KServe), with the reranker specifically
+   deployed as a genuine two-checkpoint canary, visible live in Grafana.
+4. **CI/CD** — GitHub Actions: lint/test → build & push five Docker
+   images → trigger a pipeline run, authenticated to GCP via Workload
+   Identity Federation (no stored credentials anywhere in the repo).
+
+## Ingestion & evaluation pipeline
+
+**Why it exists:** retrieval quality isn't something you can eyeball —
+`top_k`, the per-document diversity cap, chunk size, and reranking all
+trade off against each other, and the only way to know which combination
+actually works is to run the same question set through each one and
+measure it. That measurement loop is this pipeline.
+
+**How it runs.** Two KFP container components, chained with `.after()`:
+- `ingest` — pulls `corpus/clean/` from a GCS bucket (`ingestion/gcs_fetch.py`,
+  authenticated via Workload Identity — no service account key), then runs
+  the existing `ingestion/` code (load → chunk → embed → upsert) against
+  an in-cluster Chroma.
+- `ragas_eval` — runs the eval set through the current retrieval config
+  (`evaluation/generate.py`), scores it with RAGAS judges
+  (`evaluation/ragas_eval.py`), and logs params + `recall` /
+  `faithfulness` / `answer_relevancy` / `context_precision` to an
+  in-cluster MLflow run.
+
+**What it found.** A 6-variant sweep across `top_k` and per-doc cap
+settings picked `wide+capped` (`top_k=12`, `per_doc_cap=3`) as champion —
+registered in MLflow as `rag-query-path` v1 `@champion` — on `mean_recall`,
+since `faithfulness` and `context_precision` were noise-dominated at this
+eval-set size (see Reproducibility check below for the actual spread).
+That config is what `rag/` uses today. The reranker (below) exists to
+specifically target `context_precision`, the weakest of the four metrics:
+recall is high (0.88) but precision is low, meaning retrieval finds the
+right filings but returns a lot of irrelevant chunks alongside them —
+reranking is meant to push the relevant ones to the top before the
+per-doc cap and the LLM ever see them.
+
+## Query / answer flow
+
+`rag/query.py` is the entry point. For a question:
+
+1. **Retrieve** (`rag/retriever.py`) — top-k chunks from Chroma, embedded
+   either locally or via the in-cluster Embedder service
+   (`EMBEDDING_ENDPOINT`, falls back to local if unset).
+2. **Rerank** (`rag/reranker.py`) — if `RERANKER_ENDPOINT` is set, the
+   candidates are sent to the KServe reranker canary and reordered by
+   relevance before anything else touches them.
+3. **Cap** — a per-document diversity cap (`cap_per_doc`) keeps any one
+   filing from dominating the context window, applied *after* reranking
+   so it works from the more accurate ordering.
+4. **Generate** (`rag/generator.py` via `rag/answer.py`) — the LLM answers
+   from the capped context, citing ticker / fiscal year / item using
+   metadata stored per chunk at ingestion time.
+
+Every stage can run fully local (for fast iteration) or call out to the
+in-cluster services — same code path either way, just an endpoint env var.
+
+## Model serving & observability
+
+**Embedder** (`serving/embedder/`) — a custom KServe predictor wrapping
+`ingestion.embedder.embed_texts`, so query-time embedding uses the exact
+same model ingestion used to build the index.
+
+**Reranker canary** (`serving/reranker/`) — a custom KServe predictor
+wrapping `sentence_transformers.CrossEncoder`, deployed *twice*
+(`reranker` on `cross-encoder/ms-marco-MiniLM-L6-v2`, `reranker-b` on the
+larger `-L12-v2`) behind a KServe `InferenceGraph` splitting traffic
+70/30. Both checkpoints are baked into one shared image; which one a pod
+loads is picked at runtime via `MODEL_CHECKPOINT`. This was verified with
+real, differing scores for identical input — a genuine two-model canary,
+not two copies of the same model proving the plumbing works.
+
+**Observability** — Grafana + GKE Managed Prometheus (GMP), in-cluster,
+using Grafana's native Google Cloud Monitoring data source authenticated
+via Workload Identity (`roles/monitoring.viewer`) rather than the more
+complex `datasource-syncer` CronJob path. A `PodMonitoring` resource
+(`k8s/kserve/podmonitoring.yaml`) scrapes all KServe predictors' `/metrics`
+endpoints, since GMP doesn't auto-discover scrape targets. Two dashboards
+(`dashboards/`) show request rate and p95 latency; the reranker dashboard
+is the more interesting one — it plots both checkpoints side by side and
+visibly shows their different latency profiles under the live canary
+split.
+
+## CI/CD
+
+![RAGOps CI/CD pipeline — git push triggers GitHub Actions lint-test, then a build-and-push matrix of five images to GHCR, then a trigger-pipeline job that submits a KFP run and the pulled images landing in the KFP pods and KServe predictors](diagrams/cicd.png)
+<!-- Export: open diagrams/architecture.drawio, page 2 "CI/CD",
+     File > Export as > PNG, save to diagrams/cicd.png -->
+
+`.github/workflows/ci.yml`, three jobs on every push to `main`:
+
+1. **lint-test** — Ruff + pytest.
+2. **build-and-push** — matrix build of five images (`rag-api`,
+   `ragops-ingestion`, `ragops-evaluation`, `ragops-embedder`,
+   `ragops-reranker`), tagged by commit SHA, pushed to GHCR.
+3. **trigger-pipeline** — authenticates to GCP via Workload Identity
+   Federation (no stored GCP credentials — OIDC token exchange), fetches
+   GKE credentials, port-forwards to the in-cluster KFP API, and submits
+   a run of the ingestion/eval pipeline against that commit's images
+   (`pipelines/trigger_run.py`).
 
 ## Infrastructure (`terraform/`)
 
-A **GKE Standard, zonal** cluster (`us-west1-a`), its VPC-native
-network/subnet (with pods/services secondary ranges), the project APIs it
-depends on, and a Terraform-managed GCP budget alert ($20/$50 thresholds via
-`billingbudgets.googleapis.com`). The corpus GCS bucket lives in its own
-Terraform root with separate state (`terraform/storage/`), so the daily
-cluster teardown never touches it.
+A **GKE Standard, zonal** cluster (`us-west1-a`) — started on Autopilot,
+migrated to Standard, because Autopilot's non-preemptible system balloon
+pod plus the project's SSD quota left no room for cert-manager, KServe,
+two model services, and a canary split at once. Node pool is two
+`e2-standard-4` nodes with Workload Identity enabled. The corpus GCS
+bucket lives in its own Terraform root (`terraform/storage/`) with
+separate state, and now also holds the Workload Identity Federation
+pool/provider/service-account binding GitHub Actions authenticates
+through.
 
-**Standard, not Autopilot.** The cluster started on GKE Autopilot and was
-migrated to Standard mid-Week 3. Autopilot runs a non-preemptible
-`gke-system-balloon-pod` in `kube-system` that reserves a large and
-dynamically growing share of node capacity (observed growing from roughly
-2 CPU/15GiB to 4 CPU/20GiB over the course of a day) — after that reservation
-there wasn't enough schedulable room left for cert-manager, KServe, two
-model services, and a canary split. A third Autopilot node couldn't be added
-either way, since the `SSD_TOTAL_GB` regional quota (250GB on the free
-trial) was already consumed by node boot disks plus KFP's PersistentVolumes.
-Standard mode has no balloon pod, and its `pd-standard` boot disks don't
-draw on that same SSD quota at all. The node pool is two `e2-standard-4`
-nodes (8 vCPU / 32GB total, using the full E2_CPUS quota on the free trial),
-with Workload Identity enabled on the cluster.
+Bring the cluster up day-to-day via `make cluster-up` / `make
+cluster-down` (see `DEV_START.md` for the full checklist). `cluster-down`
+deletes every namespace owning a PersistentVolumeClaim before destroying
+the cluster — deleting the cluster directly skips the Kubernetes API, so
+the CSI driver never cleans up its disks and they orphan against the SSD
+quota otherwise.
 
-Variables (`variables.tf`): `project_id` and `billing_account_id` have no
-defaults and must be supplied via `terraform.tfvars` (gitignored — never
-commit real IDs); `region`, `zone` (`us-west1-a`), `vpc_name`,
-`k8s_cluster_name`, and `budget_amount` all have sensible defaults.
-
-Bring the cluster up — day-to-day this is `make cluster-up` / `make
-cluster-down` (see `DEV_START.md` for the full daily checklist, including
-KFP, Chroma, MLflow, KServe, and the Anthropic secret):
-
-```bash
-cd terraform
-# terraform.tfvars (gitignored): project_id, billing_account_id
-terraform init
-terraform apply
-gcloud container clusters get-credentials <cluster_name> --zone <zone> --project <project_id>
-kubectl get nodes   # confirm kubectl is talking to the cluster
-```
-
-Two GCP-side gotchas hit during setup, in case they recur: (1) ADC user
-credentials don't reliably pick up a quota project for billing-related APIs
-— fixed via `user_project_override = true` + `billing_project` on the
-`google` provider block rather than relying on `gcloud auth
-application-default set-quota-project`; (2) a brand-new project needs
-`cloudresourcemanager.googleapis.com` enabled before Terraform can manage
-*any* other API via `google_project_service` — a one-time manual
-`gcloud services enable`, since Terraform can't bootstrap its own way past
-that chicken-and-egg dependency.
-
-**Daily habit:** `make cluster-down` when stepping away, `make cluster-up`
-when starting back up. `cluster-down` deletes every namespace that owns a
-PersistentVolumeClaim (`kubeflow`, `ragops`) *before* destroying the cluster
-— deleting the cluster directly doesn't go through the Kubernetes API, so
-the CSI driver never gets a chance to clean up its disks, and they orphan
-silently against the SSD quota otherwise.
-
-## Week 3 — Kubeflow Pipelines, KServe model serving, and observability
-
-Week 3 moved ingestion from Airflow to Kubeflow Pipelines (KFP) on GKE and
-added KServe model serving with a live canary and Grafana dashboards. This
-is what actually got built, including a few places where the real outcome
-differs from the original plan.
-
-**KFP.** Standalone (dev flavor), not the full production distribution —
-lighter weight, no more than this single-user project needs. Pinned to
-release `2.17.0` via a local kustomize overlay (`k8s/kfp/`), which patches
-out three objects GKE Autopilot's Warden admission controller rejected (a
-wildcard RBAC binding, the `proxy-agent` Deployment using `hostNetwork`, and
-the cache-deployer/cache-server, which self-signs a TLS cert via a CSR
-Autopilot hard-blocks) and pins every KFP image to `2.17.0` explicitly,
-since the upstream overlay otherwise floats several images on `:master`
-against manifests pinned to a release — a real version-skew bug that showed
-up as a 404 on the API server's startup probe after a routine image re-pull.
-A separate `k8s/kfp-cluster-scoped/` overlay installs the `kubeflow`
-namespace and CRDs the main overlay assumes already exist.
-
-**Ingestion as a KFP pipeline** (`pipelines/`). One container component
-(`ingest`) runs the full load → chunk → embed → upsert flow inside the
-cluster: `ingestion/gcs_fetch.py` pulls `corpus/clean/` from a GCS bucket
-(the corpus lives on the laptop otherwise, which KFP pods can't read), then
-calls the existing ingestion code unchanged. Pod access to the bucket goes
-through Workload Identity: the `pipeline-runner` KSA in the `kubeflow`
-namespace is granted `roles/storage.objectViewer` directly on the bucket, no
-separate Google service account needed. A second component (`ragas_eval`)
-runs the offline eval (`evaluation/generate.py` then `evaluation/ragas_eval.py`)
-and logs to an in-cluster MLflow (`k8s/mlflow/`, sqlite-backed, StatefulSet).
-Both run as one pipeline, chained with `.after()`.
-
-**ChromaDB and MLflow.** Both run as StatefulSets in the `ragops` namespace,
-both on the `standard` (HDD) storage class rather than the SSD-backed
-cluster default, specifically to stay off the `SSD_TOTAL_GB` quota — a
-real, measured constraint this project ran into, not a theoretical one.
-Neither survives `make cluster-down`; Chroma is rebuilt by re-running the
-ingest pipeline (confirmed to reproduce the exact same retrieval results —
-see Reproducibility check below), and MLflow's run history is backed up
-separately before any teardown that needs to keep it.
-
-**KServe.** Installed via Helm (cert-manager `v1.21.2`, KServe `v0.20.0`) in
-`Standard` deployment mode — the plan originally called this
-"RawDeployment," but in this KServe release the equivalent, non-Knative mode
-is actually named `Standard`; `RawDeployment` isn't a value this version
-accepts. Ingress/gateway creation is disabled, since nothing here needs a
-public endpoint or the Google Cloud load balancer that would otherwise get
-provisioned.
-
-**Embedding model** (`serving/embedder/`) — a custom KServe predictor
-wrapping `ingestion.embedder.embed_texts`, so serving uses the exact same
-model ingestion used to build the index. The RAG retriever calls it for
-query-time embeddings when `EMBEDDING_ENDPOINT` is set, falling back to the
-local model otherwise; ingestion itself always embeds documents in-process.
-
-**Reranker canary** (`serving/reranker/`) — a custom KServe predictor
-wrapping `sentence_transformers.CrossEncoder`, deployed twice
-(`reranker` on `cross-encoder/ms-marco-MiniLM-L-6-v2`, `reranker-b` on the
-larger `cross-encoder/ms-marco-MiniLM-L-12-v2`) behind a KServe
-`InferenceGraph` splitting traffic 70/30. Both checkpoints are baked into
-one shared image; which one a given pod loads is picked at runtime via a
-`MODEL_CHECKPOINT` env var. Verified with real, differing scores for
-identical input, not just two copies of the same model answering a
-plumbing test. `rag/reranker.py` wires this into the query path via
-`RERANKER_ENDPOINT`, inserted between retrieval and the per-doc diversity
-cap, so the cap works from the reranker's more accurate ordering rather than
-raw embedding distance.
-
-**Observability.** Grafana and GKE's Managed Prometheus (GMP), not a local
-Grafana instance as originally planned — Grafana runs in-cluster (Google's
-own example manifest), using its native Google Cloud Monitoring data source
-authenticated via Workload Identity (`roles/monitoring.viewer`), which turned
-out to be simpler and have fewer moving parts than the officially documented
-`datasource-syncer` CronJob path. GMP doesn't auto-discover scrape targets
-the way self-hosted Prometheus can; a `PodMonitoring` resource
-(`k8s/kserve/podmonitoring.yaml`) tells it to scrape all four KServe
-predictors' `/metrics` endpoints. Two dashboards (Embedder, Reranker) show
-request rate and p95 latency; the reranker dashboard is the more interesting
-one, since it plots both checkpoints side by side and visibly shows their
-different latency profiles under the live canary split. An error-rate panel
-was planned but dropped — KServe's default instrumentation here only
-exposes latency histograms, no HTTP-status-labeled counter, and adding one
-would have meant custom instrumentation and a rebuild this late in the week.
-
-**Not done this week.** The Kafka → KFP trigger swap (consumer submitting
-runs to the KFP API instead of the Week 2 Airflow DAG) was tabled, to be
-picked up after KServe and the Week 4 items, a deliberate scope cut rather
-than something that didn't work out.
+Two setup gotchas, in case they recur: (1) ADC user credentials don't
+reliably pick up a quota project for billing APIs — fixed via
+`user_project_override = true` + `billing_project` on the `google`
+provider block; (2) a brand-new GCP project needs
+`cloudresourcemanager.googleapis.com` enabled manually before Terraform
+can manage any other API via `google_project_service`.
 
 ## Reproducibility check
 
 The KFP pipeline (`ingest` then `ragas_eval`) was run on a freshly created
-cluster with an empty Chroma index: the corpus came from GCS, was chunked,
-embedded and upserted in-cluster, and the eval set was then run against it
-with the Week 2 champion config (`wide+capped`: `top_k=12`, `per_doc_cap=3`).
+cluster with an empty Chroma index: corpus from GCS, chunked, embedded,
+upserted in-cluster, then evaluated against the champion config
+(`wide+capped`: `top_k=12`, `per_doc_cap=3`).
 
 `mean_recall` was **0.8819583333333334**, identical to the original local
 champion run — and reproduced again, exactly, on a second from-scratch
 cluster build after the Autopilot→Standard migration. Recall is computed
-from retrieved-source metadata only, with no LLM judge, so an exact match
-means the cluster retrieved the same chunks for every eval question across
-two completely separate cluster builds. The corpus, chunking, embeddings,
+from retrieved-source metadata only (no LLM judge), so an exact match
+means the cluster retrieved the same chunks for every eval question
+across two separate cluster builds — the corpus, chunking, embeddings,
 index and retrieval config all reproduce end to end.
 
-The LLM-judged metrics do not match exactly, as expected. Across the runs
-compared, faithfulness ranged 0.78–0.82, answer_relevancy 0.55–0.61 and
-context_precision 0.09–0.17, all with identical recall. That spread is judge
-and generation noise on a small eval set, not a pipeline difference, and
-context_precision is the noisiest. Context precision stays low while recall
-is high (0.88): retrieval finds the right filings but returns many irrelevant
-chunks, which is what the Week 3 reranker is meant to address. Because of the
-noise, the reranker comparison should use the mean of several baseline runs
-(and several reranker runs), not a single pair.
+The LLM-judged metrics do not match exactly, as expected: across the runs
+compared, `faithfulness` ranged 0.78–0.82, `answer_relevancy` 0.55–0.61,
+`context_precision` 0.09–0.17, all at identical recall — judge and
+generation noise on a small eval set, not a pipeline difference.
+`context_precision` is the noisiest, and the one the reranker targets.
 
 ## Repo layout
 
 ```
 ingestion/      load -> chunk -> embed -> upsert (Chroma)
-airflow/        Airflow DAG + docker-compose wrapping ingestion (Week 2 baseline)
+airflow/        Airflow DAG + docker-compose wrapping ingestion (superseded by the KFP pipeline)
 rag/            retrieval -> rerank -> prompt -> generation -> cited answer
 evaluation/     offline eval (generate + RAGAS judge), runs as a KFP component
 serving/        custom KServe predictors (embedder, reranker)
 pipelines/      KFP v2 SDK pipeline + component definitions
 k8s/            kustomize overlays and manifests (KFP, Chroma, MLflow, KServe, Grafana)
+diagrams/       system architecture diagram (draw.io, 2 pages: runtime, CI/CD)
+dashboards/     exported Grafana dashboards (Embedder, Reranker)
 terraform/      GKE Standard cluster + VPC + API enablement + budget alert
 terraform/storage/  corpus GCS bucket + Workload Identity grants (separate state, survives teardown)
+tests/          pytest suite (chunker, retriever, answer)
 corpus/         pulled 10-K filings (gitignored)
 Evaluation.md   eval question set and methodology
 ```
+
+## Scope and known gaps
+
+Called out explicitly rather than left to be discovered:
+
+- **No deployed RAG API service.** The query/answer orchestration
+  (`query.py` / `answer.py`) runs from wherever it's invoked (laptop,
+  CI), calling into the in-cluster Chroma/Embedder/Reranker services and
+  out to the Anthropic API — it's a client, not a standing in-cluster
+  service. Every piece of infrastructure this project owns *is* served
+  and observable; the orchestration layer deliberately isn't, since
+  adding a deployed API gateway wasn't where the interesting MLOps
+  problems were.
+- **Dev → staging promotion was scoped out.** CI/CD builds, tests, and
+  runs the pipeline automatically; a staged promotion flow with an
+  approval gate was deliberately dropped in favor of finishing
+  documentation and the demo.
+- **Kafka → KFP trigger swap was tabled.** The Week 2 Kafka consumer
+  still submits to the old Airflow DAG rather than the KFP API.
+- **No error-rate panel.** KServe's default instrumentation here only
+  exposes latency histograms, not an HTTP-status-labeled counter; adding
+  one would have meant custom instrumentation.

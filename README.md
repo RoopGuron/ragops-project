@@ -158,24 +158,30 @@ can manage any other API via `google_project_service`.
 
 ## Reproducibility check
 
-The KFP pipeline (`ingest` then `ragas_eval`) was run on a freshly created
-cluster with an empty Chroma index: corpus from GCS, chunked, embedded,
-upserted in-cluster, then evaluated against the champion config
-(`wide+capped`: `top_k=12`, `per_doc_cap=3`).
+The KFP pipeline (`ingest` then `ragas_eval`) ran against the champion
+config (`wide+capped`: `top_k=12`, `per_doc_cap=3`) on **four separate
+from-scratch cluster builds**, spanning 2026-09-26 to 2026-10-10 — the
+cluster gets torn down and rebuilt most days (see Infrastructure above),
+so each of these started from an empty Chroma index with the corpus
+re-pulled from GCS and re-embedded from nothing.
 
-`mean_recall` was **0.8819583333333334**, identical to the original local
-champion run — and reproduced again, exactly, on a second from-scratch
-cluster build after the Autopilot→Standard migration. Recall is computed
-from retrieved-source metadata only (no LLM judge), so an exact match
-means the cluster retrieved the same chunks for every eval question
-across two separate cluster builds — the corpus, chunking, embeddings,
-index and retrieval config all reproduce end to end.
+`mean_recall` was **0.8819583333333334** on every single one of the four
+runs — bit-for-bit identical. Recall is computed from retrieved-source
+metadata only (no LLM judge), so an exact match across four independent
+cluster builds means the corpus, chunking, embeddings, index and
+retrieval config all reproduce end to end, not just once.
 
-The LLM-judged metrics do not match exactly, as expected: across the runs
-compared, `faithfulness` ranged 0.78–0.82, `answer_relevancy` 0.55–0.61,
-`context_precision` 0.09–0.17, all at identical recall — judge and
+The LLM-judged metrics don't match exactly, as expected: across the same
+four runs, `faithfulness` ranged 0.80–0.86, `answer_relevancy` 0.55–0.64,
+`context_precision` 0.10–0.17, all at identical recall — judge and
 generation noise on a small eval set, not a pipeline difference.
 `context_precision` is the noisiest, and the one the reranker targets.
+
+One intermediate attempt (2026-10-05) failed outright before producing
+any metrics — `Anthropic API error 401: API key is invalid`, a stale
+credential, not a pipeline bug — fixed and re-run successfully within the
+hour. Worth logging here rather than quietly excluding it: the failures
+are visible in MLflow's run history too, not just the successes.
 
 ## Repo layout
 
